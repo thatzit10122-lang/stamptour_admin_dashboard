@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스탬프투어 관리자 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #1c2230;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --green: #3fb950;
+  --green-dim: #1a3828;
+  --teal: #39d0c8;
+  --teal-dim: #0d2b2e;
+  --amber: #d29922;
+  --amber-dim: #2d2008;
+  --red: #f85149;
+  --red-dim: #2d1117;
+  --blue: #58a6ff;
+  --blue-dim: #0d1f3c;
+  --purple: #a371f7;
+  --purple-dim: #1e1535;
+  --radius: 10px;
+  --font: 'Noto Sans KR', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed; top: 0; left: 0;
+  width: 220px; height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 100;
+}
+.logo {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-mark { display: flex; align-items: center; gap: 10px; }
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--green); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.logo-text { font-weight: 700; font-size: 14px; letter-spacing: -0.3px; }
+.logo-sub { font-size: 10px; color: var(--text2); margin-top: 2px; font-family: var(--mono); letter-spacing: 0.5px; }
+
+nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+.nav-label {
+  font-size: 10px; color: var(--text3);
+  padding: 8px 18px 4px;
+  letter-spacing: 0.8px; text-transform: uppercase; font-family: var(--mono);
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 18px; color: var(--text2); cursor: pointer;
+  border-left: 2px solid transparent; font-size: 13px;
+  transition: all .15s;
+}
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.nav-item.active {
+  color: var(--green); border-left-color: var(--green);
+  background: rgba(63,185,80,0.06); font-weight: 500;
+}
+.nav-icon { width: 16px; text-align: center; font-size: 14px; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; background: var(--red); color: #fff;
+  font-size: 10px; padding: 1px 6px; border-radius: 10px; font-family: var(--mono);
+}
+.nav-badge.amber { background: var(--amber); color: #0d1117; }
+
+.sidebar-footer {
+  padding: 14px 18px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--blue-dim); border: 1px solid var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--blue); font-weight: 700; flex-shrink: 0;
+}
+.user-name { font-size: 12px; font-weight: 500; }
+.user-role { font-size: 10px; color: var(--text3); }
+
+/* ── MAIN ── */
+.main { margin-left: 220px; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── TOPBAR ── */
+.topbar {
+  height: 52px; background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-left { flex: 1; min-width: 0; }
+.topbar-title { font-size: 15px; font-weight: 700; }
+.topbar-sub { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+.filter-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.filter-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 5px 12px;
+  color: var(--text); font-size: 12px; font-family: var(--font);
+  cursor: pointer; transition: border-color .15s; white-space: nowrap;
+}
+.filter-btn:hover { border-color: rgba(255,255,255,0.22); }
+.filter-btn select {
+  background: none; border: none; color: var(--text);
+  font-size: 12px; font-family: var(--font); cursor: pointer; outline: none;
+}
+.btn-primary {
+  background: var(--green); color: #0d1117; border: none;
+  border-radius: 6px; padding: 6px 14px;
+  font-size: 12px; font-weight: 700; font-family: var(--font);
+  cursor: pointer; transition: opacity .15s;
+  display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0;
+}
+.btn-primary:hover { opacity: .85; }
+
+/* ── CONTENT ── */
+.content { padding: 24px; flex: 1; }
+
+/* ── ALERT ── */
+.alert-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.28);
+  border-radius: var(--radius); padding: 10px 16px; margin-bottom: 22px;
+}
+.alert-dot {
+  width: 8px; height: 8px; background: var(--red); border-radius: 50%;
+  flex-shrink: 0; animation: blink 1.5s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+.alert-text { font-size: 12px; color: var(--text2); }
+.alert-text strong { color: var(--red); }
+.alert-link { margin-left: auto; font-size: 11px; color: var(--red); cursor: pointer; font-family: var(--mono); white-space: nowrap; }
+
+/* ── KPI CARDS ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 14px; }
+.kpi-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+  position: relative; overflow: hidden; cursor: pointer;
+  transition: border-color .2s, transform .2s;
+  animation: fadeUp .35s ease both;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.teal::before  { background: var(--teal); }
+.kpi-card.amber::before { background: var(--amber); }
+.kpi-card.purple::before{ background: var(--purple); }
+.kpi-card:nth-child(1) { animation-delay: .05s; }
+.kpi-card:nth-child(2) { animation-delay: .10s; }
+.kpi-card:nth-child(3) { animation-delay: .15s; }
+.kpi-card:nth-child(4) { animation-delay: .20s; }
+
+.kpi-label { font-size: 11px; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.kpi-icon  { font-size: 14px; }
+.kpi-value { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; font-family: var(--mono); letter-spacing: -1px; }
+.kpi-card.green  .kpi-value { color: var(--green); }
+.kpi-card.teal   .kpi-value { color: var(--teal); }
+.kpi-card.amber  .kpi-value { color: var(--amber); }
+.kpi-card.purple .kpi-value { color: var(--purple); }
+.kpi-change { font-size: 11px; font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
+.kpi-change.up { color: var(--green); }
+.kpi-change.down { color: var(--red); }
+.kpi-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* ── FUNNEL ── */
+.funnel-strip {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 24px;
+  margin-bottom: 22px; display: flex; align-items: center;
+}
+.funnel-item { flex: 1; text-align: center; position: relative; padding: 0 8px; }
+.funnel-item:not(:last-child)::after {
+  content: '›'; position: absolute; right: -10px; top: 50%;
+  transform: translateY(-62%); color: var(--text3); font-size: 22px;
+}
+.funnel-num  { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+.funnel-label{ font-size: 11px; color: var(--text2); margin-top: 2px; }
+.funnel-rate { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+.funnel-bar-wrap { height: 3px; background: var(--bg3); border-radius: 2px; margin-top: 6px; }
+.funnel-bar  { height: 3px; border-radius: 2px; }
+
+/* ── SECTION LABEL ── */
+.section-label {
+  font-size: 10px; color: var(--text3); font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── CHART CARD ── */
+.chart-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+}
+.chart-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.chart-title    { font-size: 13px; font-weight: 700; }
+.chart-subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.chart-actions  { display: flex; gap: 6px; flex-shrink: 0; }
+.tab-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 5px; padding: 3px 9px;
+  font-size: 11px; color: var(--text2); cursor: pointer;
+  transition: all .15s; font-family: var(--font);
+}
+.tab-btn.active { background: rgba(63,185,80,0.12); border-color: rgba(63,185,80,0.38); color: var(--green); }
+
+/* ── GRID LAYOUTS ── */
+.chart-grid   { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 22px; }
+
+/* ── DATA TABLE ── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  text-align: left; font-size: 10px; color: var(--text3);
+  padding: 0 8px 10px; font-weight: 500; letter-spacing: 0.5px;
+  text-transform: uppercase; font-family: var(--mono);
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 9px 8px; font-size: 12px;
+  border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+.rank-num { font-family: var(--mono); color: var(--text3); font-size: 11px; }
+.bar-cell { display: flex; align-items: center; gap: 8px; }
+.mini-bar-wrap { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; }
+.mini-bar { height: 4px; border-radius: 2px; background: var(--green); }
+.mini-num { font-family: var(--mono); font-size: 11px; color: var(--text2); min-width: 30px; text-align: right; }
+.rate-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-family: var(--mono); }
+.rate-high { background: var(--green-dim); color: var(--green); }
+.rate-mid  { background: var(--amber-dim); color: var(--amber); }
+.rate-low  { background: var(--red-dim);   color: var(--red); }
+
+/* ── ALERT LIST ── */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+  cursor: pointer; transition: border-color .15s;
+}
+.alert-item:hover { border-color: rgba(248,81,73,0.38); }
+.alert-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--red-dim); border: 1px solid rgba(248,81,73,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--red); flex-shrink: 0;
+}
+.alert-nick   { font-size: 12px; font-weight: 500; color: var(--red); }
+.alert-detail { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.alert-time   { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-left: auto; flex-shrink: 0; }
+
+/* ── AUTH QUEUE ── */
+.auth-queue { display: flex; flex-direction: column; gap: 8px; }
+.auth-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+}
+.auth-thumb {
+  width: 40px; height: 40px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.auth-nick  { font-size: 12px; font-weight: 500; }
+.auth-place { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.auth-btns  { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.btn-accept {
+  background: rgba(63,185,80,0.12); color: var(--green);
+  border: 1px solid rgba(63,185,80,0.28); border-radius: 5px;
+  padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.btn-accept:hover { background: rgba(63,185,80,0.24); }
+.btn-reject {
+  background: rgba(248,81,73,0.08); color: var(--red);
+  border: 1px solid rgba(248,81,73,0.24); border-radius: 5px;
+  padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: var(--font);
+  transition: all .15s;
+}
+.btn-reject:hover { background: rgba(248,81,73,0.18); }
+
+/* ── GAUGE ── */
+.gauge-row { display: flex; gap: 12px; margin-top: 14px; }
+.gauge-item { flex: 1; }
+.gauge-label {
+  font-size: 11px; color: var(--text2); margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.gauge-track { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.gauge-fill  { height: 5px; border-radius: 3px; }
+.gauge-big   { font-size: 26px; font-weight: 700; font-family: var(--mono); color: var(--teal); }
+.gauge-unit  { font-size: 12px; color: var(--text2); margin-left: 6px; }
+
+/* ── SHOP CARDS ── */
+.shop-mini {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px;
+}
+.shop-val { font-size: 20px; font-weight: 700; font-family: var(--mono); margin-bottom: 2px; }
+.shop-lbl { font-size: 11px; color: var(--text2); }
+.shop-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.mini-progress { height: 3px; background: var(--bg2); border-radius: 2px; margin-top: 8px; }
+.mini-progress-fill { height: 3px; border-radius: 2px; }
+
+/* ── CHIP ── */
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-family: var(--mono); }
+.chip.green  { background: var(--green-dim); color: var(--green); }
+.chip.amber  { background: var(--amber-dim); color: var(--amber); }
+.chip.red    { background: var(--red-dim);   color: var(--red); }
+.chip.blue   { background: var(--blue-dim);  color: var(--blue); }
+
+.scrollable { max-height: 252px; overflow-y: auto; }
+.scrollable::-webkit-scrollbar { width: 4px; }
+.scrollable::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-icon">🗺️</div>
+      <div>
+        <div class="logo-text">스탬프투어</div>
+        <div class="logo-sub">ADMIN v2.0</div>
+      </div>
+    </div>
+  </div>
+  <nav>
+    <div class="nav-label">메인</div>
+    <div class="nav-item active"><span class="nav-icon">◉</span>대시보드</div>
+    <div class="nav-label">운영</div>
+    <div class="nav-item"><span class="nav-icon">📢</span>공지사항</div>
+    <div class="nav-item"><span class="nav-icon">🏪</span>상점 관리</div>
+    <div class="nav-item"><span class="nav-icon">🎁</span>선물 관리</div>
+    <div class="nav-item"><span class="nav-icon">🧾</span>영수증 이벤트</div>
+    <div class="nav-item"><span class="nav-icon">✍️</span>후기 관리</div>
+    <div class="nav-item"><span class="nav-icon">✅</span>수동 인증<span class="nav-badge amber">3</span></div>
+    <div class="nav-label">분석</div>
+    <div class="nav-item"><span class="nav-icon">📊</span>상세 보고서</div>
+    <div class="nav-item"><span class="nav-icon">⚠️</span>부정사용 관리<span class="nav-badge">5</span></div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">관</div>
+    <div>
+      <div class="user-name">창원시청 담당자</div>
+      <div class="user-role">관리자</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">대시보드</div>
+      <div class="topbar-sub">창원둘레길 스탬프투어 · 2026년 4월</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-btn">📅<select><option>2026년 4월</option><option>2026년 3월</option><option>2026년 2월</option></select></div>
+      <div class="filter-btn">📍<select><option>전체 코스</option><option>코스 1~5</option><option>코스 6~10</option><option>코스 11~15</option></select></div>
+      <button class="btn-primary">⬇ 보고서 다운로드</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ALERT -->
+    <div class="alert-banner">
+      <div class="alert-dot"></div>
+      <div class="alert-text"><strong>부정사용 의심 5건</strong> 감지됨 — 동일 위치 반복 인증 패턴 확인 필요</div>
+      <span class="alert-link">바로 확인 →</span>
+    </div>
+
+    <!-- KPI 4개 -->
+    <div class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-label">총 참여자<span class="kpi-icon">👥</span></div>
+        <div class="kpi-value">1,284</div>
+        <div class="kpi-change up">▲ +12.4% 전월 대비</div>
+        <div class="kpi-sub">스탬프 신청자 기준</div>
+      </div>
+      <div class="kpi-card teal">
+        <div class="kpi-label">스탬프 인증<span class="kpi-icon">🔖</span></div>
+        <div class="kpi-value">8,732</div>
+        <div class="kpi-change up">▲ +8.7% 전월 대비</div>
+        <div class="kpi-sub">15코스 · 스탬프존 12개</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">선물 신청자<span class="kpi-icon">🎁</span></div>
+        <div class="kpi-value">342</div>
+        <div class="kpi-change up">▲ +5.2% 전월 대비</div>
+        <div class="kpi-sub">스탬프6: 203명 / 스탬프12: 139명</div>
+      </div>
+      <div class="kpi-card purple">
+        <div class="kpi-label">후기 작성<span class="kpi-icon">✍️</span></div>
+        <div class="kpi-value">956</div>
+        <div class="kpi-change down">▼ −2.1% 전월 대비</div>
+        <div class="kpi-sub">후기 전환율 74.5%</div>
+      </div>
+    </div>
+
+    <!-- FUNNEL -->
+    <div class="funnel-strip">
+      <div class="funnel-item">
+        <div class="funnel-num" style="color:var(--green)">1,284</div>
+        <div class="funnel-label">앱 참여자</div>
+        <div class="funnel-rate">100%</div>
+        <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:100%;background:var(--green)"></div></div>
+      </div>
+      <div class="funnel-item">
+        <div class="funnel-num" style="color:var(--teal)">1,102</div>
+        <div class="funnel-label">스탬프 인증자</div>
+        <div class="funnel-rate">85.8%</div>
+        <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:86%;background:var(--teal)"></div></div>
+      </div>
+      <div class="funnel-item">
+        <div class="funnel-num" style="color:var(--amber)">956</div>
+        <div class="funnel-label">후기 작성자</div>
+        <div class="funnel-rate">74.5%</div>
+        <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:75%;background:var(--amber)"></div></div>
+      </div>
+      <div class="funnel-item">
+        <div class="funnel-num" style="color:var(--purple)">342</div>
+        <div class="funnel-label">선물 신청자</div>
+        <div class="funnel-rate">26.6%</div>
+        <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:27%;background:var(--purple)"></div></div>
+      </div>
+      <div class="funnel-item">
+        <div class="funnel-num" style="color:var(--blue)">298</div>
+        <div class="funnel-label">선물 지급 완료</div>
+        <div class="funnel-rate">23.2%</div>
+        <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:23%;background:var(--blue)"></div></div>
+      </div>
+    </div>
+
+    <!-- 스탬프 현황 -->
+    <div class="section-label">스탬프 현황</div>
+    <div class="chart-grid">
+      <!-- 일별 추이 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">일별 스탬프 인증 추이</div>
+            <div class="chart-subtitle">2026년 4월 · 일별 인증 건수</div>
+          </div>
+          <div class="chart-actions">
+            <button class="tab-btn active" onclick="switchLine('daily',this)">일별</button>
+            <button class="tab-btn" onclick="switchLine('cumul',this)">누적</button>
+          </div>
+        </div>
+        <canvas id="lineChart" height="140"></canvas>
+      </div>
+      <!-- 참여자 분포 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">참여자 분포</div>
+            <div class="chart-subtitle">연령별 / 성별</div>
+          </div>
+          <div class="chart-actions">
+            <button class="tab-btn active" onclick="switchDist('age',this)">연령</button>
+            <button class="tab-btn" onclick="switchDist('gender',this)">성별</button>
+          </div>
+        </div>
+        <canvas id="distChart" height="140"></canvas>
+      </div>
+    </div>
+
+    <!-- 장소 분석 -->
+    <div class="section-label">장소 분석</div>
+    <div class="chart-grid">
+      <!-- 가로 막대 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">장소별 스탬프 인증 Top 10</div>
+            <div class="chart-subtitle">스탬프 인증수 vs 후기 건수 비교</div>
+          </div>
+        </div>
+        <canvas id="placeChart" height="200"></canvas>
+      </div>
+      <!-- 성과 테이블 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">장소별 종합 성과</div>
+            <div class="chart-subtitle">인증 · 후기 · 전환율</div>
+          </div>
+        </div>
+        <div class="scrollable">
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>장소명</th><th>인증</th><th>후기</th><th>전환율</th></tr>
+            </thead>
+            <tbody id="place-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 선물 & 운영 현황 -->
+    <div class="section-label">선물 & 운영 현황</div>
+    <div class="chart-grid-3">
+
+      <!-- 선물 지급 현황 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">선물 지급 현황</div>
+            <div class="chart-subtitle">스탬프6 · 스탬프12 · 지급 상태</div>
+          </div>
+        </div>
+        <canvas id="giftChart" height="140"></canvas>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center;">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">스탬프 6 · 5천원권</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--amber);">203명</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center;">
+            <div style="font-size:10px;color:var(--text2);margin-bottom:4px;">스탬프 12 · 1만원권</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green);">139명</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 영수증 처리 현황 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">영수증 이벤트 처리 현황</div>
+            <div class="chart-subtitle">4월 기준 전체 건수</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;">
+          <span class="gauge-big">15,000</span>
+          <span class="gauge-unit">건 접수</span>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="gauge-item" style="margin-bottom:10px;">
+            <div class="gauge-label">
+              <span style="color:var(--green)">처리완료</span>
+              <span style="font-family:var(--mono);font-size:11px;">13,000건</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill" style="width:87%;background:var(--green)"></div></div>
+          </div>
+          <div class="gauge-item" style="margin-bottom:10px;">
+            <div class="gauge-label">
+              <span style="color:var(--amber)">처리중</span>
+              <span style="font-family:var(--mono);font-size:11px;">1,000건</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill" style="width:7%;background:var(--amber)"></div></div>
+          </div>
+          <div class="gauge-item">
+            <div class="gauge-label">
+              <span style="color:var(--red)">부적격</span>
+              <span style="font-family:var(--mono);font-size:11px;">1,000건</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill" style="width:7%;background:var(--red)"></div></div>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text2);">총 소비 인증 금액</div>
+          <div style="font-size:16px;font-weight:700;font-family:var(--mono);color:var(--teal);margin-top:3px;">260,000,000원</div>
+        </div>
+      </div>
+
+      <!-- 부정사용 의심 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">⚠ 부정사용 의심자</div>
+            <div class="chart-subtitle">즉시 확인 필요</div>
+          </div>
+          <span class="chip red">5건</span>
+        </div>
+        <div class="alert-list">
+          <div class="alert-item">
+            <div class="alert-avatar">하</div>
+            <div>
+              <div class="alert-nick">하늘만큼땅만큼</div>
+              <div class="alert-detail">동일 위치 3회 반복 인증</div>
+            </div>
+            <div class="alert-time">09:14</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-avatar">발</div>
+            <div>
+              <div class="alert-nick">발렌타인_2</div>
+              <div class="alert-detail">인증 간격 1분 미만</div>
+            </div>
+            <div class="alert-time">08:52</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-avatar">닉</div>
+            <div>
+              <div class="alert-nick">닉네임_94821</div>
+              <div class="alert-detail">GPS 오차 허용범위 초과</div>
+            </div>
+            <div class="alert-time">07:30</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;text-align:center;">
+          <span style="font-size:11px;color:var(--text3);font-family:var(--mono);cursor:pointer;text-decoration:underline;">전체 목록 보기 (5건) →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 지역 분포 & 수동인증 -->
+    <div class="section-label">지역 분포 & 수동 인증</div>
+    <div class="chart-grid-2">
+
+      <!-- 지역 분포 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">선물신청자 지역 분포</div>
+            <div class="chart-subtitle">시도별 신청자 수 기준</div>
+          </div>
+        </div>
+        <canvas id="regionChart" height="160"></canvas>
+      </div>
+
+      <!-- 수동 인증 대기 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">수동 인증 대기</div>
+            <div class="chart-subtitle">승인 / 거절 처리 필요</div>
+          </div>
+          <span class="chip amber">3건 대기</span>
+        </div>
+        <div class="auth-queue">
+          <div class="auth-item">
+            <div class="auth-thumb">🖼️</div>
+            <div>
+              <div class="auth-nick">닉네임2</div>
+              <div class="auth-place">장소명2 · 2025.11.01 21:00</div>
+            </div>
+            <div class="auth-btns">
+              <button class="btn-accept" onclick="this.closest('.auth-item').style.opacity='.4'">인증</button>
+              <button class="btn-reject" onclick="this.closest('.auth-item').style.opacity='.4'">거절</button>
+            </div>
+          </div>
+          <div class="auth-item">
+            <div class="auth-thumb">🖼️</div>
+            <div>
+              <div class="auth-nick">닉네임1</div>
+              <div class="auth-place">장소명1 · 2025.11.01 08:30</div>
+            </div>
+            <div class="auth-btns">
+              <button class="btn-accept" onclick="this.closest('.auth-item').style.opacity='.4'">인증</button>
+              <button class="btn-reject" onclick="this.closest('.auth-item').style.opacity='.4'">거절</button>
+            </div>
+          </div>
+          <div class="auth-item">
+            <div class="auth-thumb">🖼️</div>
+            <div>
+              <div class="auth-nick">닉네임00</div>
+              <div class="auth-place">장소명1 · 2025.11.01 07:15</div>
+            </div>
+            <div class="auth-btns">
+              <button class="btn-accept" onclick="this.closest('.auth-item').style.opacity='.4'">인증</button>
+              <button class="btn-reject" onclick="this.closest('.auth-item').style.opacity='.4'">거절</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 상점 현황 -->
+    <div class="section-label">상점 현황 (4월)</div>
+    <div class="chart-grid-4">
+      <div class="shop-mini">
+        <div class="shop-val" style="color:var(--teal)">1,500<span style="font-size:14px;font-weight:400;">개</span></div>
+        <div class="shop-lbl">총 누적 상점</div>
+        <div class="shop-sub">이번달 신규 +100개</div>
+      </div>
+      <div class="shop-mini">
+        <div class="shop-val" style="color:var(--green)">1,000<span style="font-size:14px;font-weight:400;">건</span></div>
+        <div class="shop-lbl">메시지 등록</div>
+        <div class="shop-sub">조회수 1,000건</div>
+      </div>
+      <div class="shop-mini">
+        <div class="shop-val" style="color:var(--amber)">500<span style="font-size:14px;font-weight:400;">회</span></div>
+        <div class="shop-lbl">쿠폰 발급</div>
+        <div class="shop-sub">등록 1,000건 중</div>
+      </div>
+      <div class="shop-mini">
+        <div class="shop-val" style="color:var(--purple)">50<span style="font-size:14px;font-weight:400;">%</span></div>
+        <div class="shop-lbl">쿠폰 사용률</div>
+        <div class="mini-progress"><div class="mini-progress-fill" style="width:50%;background:var(--purple)"></div></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+Chart.defaults.color = '#8b949e';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+/* DATA */
+const days   = Array.from({length:30}, (_,i) => i+1+'일');
+const daily  = [120,145,98,210,180,290,320,210,175,240,310,280,195,230,260,310,285,220,190,245,280,310,270,230,195,210,240,265,280,300];
+const cumul  = daily.reduce((a,v,i) => { a.push((a[i-1]||0)+v); return a; }, []);
+const places = ['천주산코스','비음산코스','불모산코스','용지봉코스','정병산코스','대암산코스','장복산코스','웅산코스','금강산코스','팔용산코스'];
+const stamps = [820,740,680,620,590,540,490,450,380,310];
+const reviews= [380,290,310,220,260,180,200,150,140,90];
+
+const gridColor = 'rgba(255,255,255,0.04)';
+
+/* LINE */
+const lChart = new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: { labels: days, datasets: [{
+    data: daily, borderColor: '#3fb950',
+    backgroundColor: 'rgba(63,185,80,0.07)',
+    borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: true, tension: .4
+  }]},
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { maxTicksLimit: 8 } },
+      y: { grid: { color: gridColor }, beginAtZero: true }
+    }
+  }
+});
+function switchLine(m, btn) {
+  btn.closest('.chart-actions').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  lChart.data.datasets[0].data = m === 'daily' ? daily : cumul;
+  lChart.data.datasets[0].borderColor = m === 'cumul' ? '#58a6ff' : '#3fb950';
+  lChart.data.datasets[0].backgroundColor = m === 'cumul' ? 'rgba(88,166,255,0.07)' : 'rgba(63,185,80,0.07)';
+  lChart.update();
+}
+
+/* DIST */
+const dChart = new Chart(document.getElementById('distChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['10대','20대','30대','40대','50대','60대+'],
+    datasets: [{ data: [80,130,210,320,180,90], backgroundColor: ['#58a6ff','#3fb950','#39d0c8','#d29922','#a371f7','#f85149'], borderWidth: 0, hoverOffset: 5 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true, cutout: '66%',
+    plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 10, font: { size: 11 } } } }
+  }
+});
+function switchDist(m, btn) {
+  btn.closest('.chart-actions').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (m === 'gender') {
+    dChart.data.labels = ['남성','여성'];
+    dChart.data.datasets[0].data = [620, 664];
+    dChart.data.datasets[0].backgroundColor = ['#58a6ff','#f97583'];
+  } else {
+    dChart.data.labels = ['10대','20대','30대','40대','50대','60대+'];
+    dChart.data.datasets[0].data = [80,130,210,320,180,90];
+    dChart.data.datasets[0].backgroundColor = ['#58a6ff','#3fb950','#39d0c8','#d29922','#a371f7','#f85149'];
+  }
+  dChart.update();
+}
+
+/* PLACE */
+new Chart(document.getElementById('placeChart'), {
+  type: 'bar',
+  data: {
+    labels: places.map(p => p.slice(0,4)+'..'),
+    datasets: [
+      { label: '스탬프 인증', data: stamps,  backgroundColor: 'rgba(63,185,80,0.72)', borderRadius: 3, borderSkipped: false },
+      { label: '후기 건수',   data: reviews, backgroundColor: 'rgba(57,208,200,0.60)', borderRadius: 3, borderSkipped: false }
+    ]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 12 } } },
+    scales: {
+      x: { grid: { color: gridColor } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+/* PLACE TABLE */
+const tbody = document.getElementById('place-table');
+places.forEach((p, i) => {
+  const rate = Math.round(reviews[i] / stamps[i] * 100);
+  const cls  = rate >= 45 ? 'rate-high' : rate >= 30 ? 'rate-mid' : 'rate-low';
+  const pct  = Math.round(stamps[i] / 820 * 100);
+  tbody.innerHTML += `<tr>
+    <td class="rank-num">${i+1}</td>
+    <td style="font-size:11px;">${p}</td>
+    <td><div class="bar-cell"><div class="mini-bar-wrap"><div class="mini-bar" style="width:${pct}%"></div></div><span class="mini-num">${stamps[i]}</span></div></td>
+    <td class="mini-num">${reviews[i]}</td>
+    <td><span class="rate-badge ${cls}">${rate}%</span></td>
+  </tr>`;
+});
+
+/* GIFT */
+new Chart(document.getElementById('giftChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['지급완료','미지급','취소'],
+    datasets: [{ data: [298, 37, 7], backgroundColor: ['#3fb950','#d29922','#f85149'], borderWidth: 0, hoverOffset: 4 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true, cutout: '70%',
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 9, padding: 10, font: { size: 10 } } } }
+  }
+});
+
+/* REGION */
+new Chart(document.getElementById('regionChart'), {
+  type: 'bar',
+  data: {
+    labels: ['경남','서울','경기','부산','대구','인천','광주','대전','울산','기타'],
+    datasets: [{ data: [145,52,48,38,22,18,16,14,12,30],
+      backgroundColor: ['rgba(63,185,80,.8)','rgba(88,166,255,.6)','rgba(88,166,255,.5)','rgba(57,208,200,.6)','rgba(57,208,200,.5)','rgba(163,113,247,.6)','rgba(163,113,247,.5)','rgba(210,153,34,.6)','rgba(210,153,34,.5)','rgba(139,148,158,.5)'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: gridColor }, beginAtZero: true }
+    }
+  }
+});
+</script>
+</body>
+</html>
