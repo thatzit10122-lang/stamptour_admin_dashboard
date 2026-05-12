@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>스탬프투어 관리자 대시보드</title>
 <link rel="stylesheet" href="style.css">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
 <body>
 
 <!-- SIDEBAR -->
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar">
   <div class="sidebar-logo">
     <div class="logo-icon">🗺️</div>
     <div class="logo-text">
@@ -19,60 +19,47 @@
       <div class="logo-sub">ADMIN · 함평나비대축제 2026</div>
     </div>
   </div>
-
   <nav class="sidebar-nav">
     <div class="nav-section">
       <div class="nav-label">메인</div>
       <a class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
-        <span class="nav-icon">◉</span>
-        <span>대시보드</span>
+        <span class="nav-icon">◉</span><span>대시보드</span>
       </a>
     </div>
-
     <div class="nav-section">
       <div class="nav-label">운영</div>
       <a class="nav-item" data-page="notice" onclick="showPage('notice',this)">
-        <span class="nav-icon">📢</span>
-        <span>공지사항</span>
+        <span class="nav-icon">📢</span><span>공지사항</span>
       </a>
       <a class="nav-item" data-page="gift" onclick="showPage('gift',this)">
-        <span class="nav-icon">🎁</span>
-        <span>선물 신청자 관리</span>
+        <span class="nav-icon">🎁</span><span>선물 신청자 관리</span>
         <span class="nav-badge pending" id="badge-gift">115</span>
       </a>
       <a class="nav-item" data-page="review" onclick="showPage('review',this)">
-        <span class="nav-icon">✍️</span>
-        <span>후기 관리</span>
+        <span class="nav-icon">✍️</span><span>후기 관리</span>
       </a>
       <a class="nav-item" data-page="manual" onclick="showPage('manual',this)">
-        <span class="nav-icon">✅</span>
-        <span>수동 인증 요청</span>
+        <span class="nav-icon">✅</span><span>수동 인증 요청</span>
         <span class="nav-badge alert">3</span>
       </a>
       <a class="nav-item" data-page="receipt" onclick="showPage('receipt',this)">
-        <span class="nav-icon">🧾</span>
-        <span>영수증 이벤트</span>
+        <span class="nav-icon">🧾</span><span>영수증 이벤트</span>
       </a>
       <a class="nav-item" data-page="store" onclick="showPage('store',this)">
-        <span class="nav-icon">🏪</span>
-        <span>상점 관리</span>
+        <span class="nav-icon">🏪</span><span>상점 관리</span>
       </a>
     </div>
-
     <div class="nav-section">
       <div class="nav-label">분석</div>
       <a class="nav-item" data-page="report" onclick="showPage('report',this)">
-        <span class="nav-icon">📊</span>
-        <span>상세 보고서</span>
+        <span class="nav-icon">📊</span><span>상세 보고서</span>
       </a>
       <a class="nav-item" data-page="fraud" onclick="showPage('fraud',this)">
-        <span class="nav-icon">⚠️</span>
-        <span>부정사용 관리</span>
+        <span class="nav-icon">⚠️</span><span>부정사용 관리</span>
         <span class="nav-badge alert">10</span>
       </a>
     </div>
   </nav>
-
   <div class="sidebar-user">
     <div class="user-avatar">관</div>
     <div class="user-info">
@@ -84,136 +71,130 @@
 
 <!-- MAIN -->
 <div class="main-wrap">
-
-  <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar-left">
       <div class="topbar-title" id="topbar-title">대시보드</div>
       <div class="topbar-sub">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
     </div>
     <div class="topbar-right" id="topbar-actions">
-      <button class="btn btn-outline" onclick="alert('보고서 다운로드')">⬇ 보고서 다운로드</button>
+      <button class="btn btn-outline">⬇ 보고서 다운로드</button>
     </div>
   </header>
 
-  <!-- PAGES -->
-  <main class="content" id="content">
+  <main class="content">
 
-    <!-- ==================== DASHBOARD ==================== -->
+    <!-- ============ DASHBOARD ============ -->
     <div class="page active" id="page-dashboard">
-
-      <!-- 경보 -->
-      <div class="alert-bar" id="fraud-alert">
+      <div class="alert-bar">
         <span class="alert-dot"></span>
         <strong>부정사용 의심 10건</strong> 감지 — 동일 위치 반복 인증 패턴 확인 필요
-        <button class="alert-link" onclick="showPage('fraud', document.querySelector('[data-page=fraud]'))">바로 확인 →</button>
+        <button class="alert-link" onclick="showPage('fraud',document.querySelector('[data-page=fraud]'))">바로 확인 →</button>
       </div>
-
-      <!-- KPI -->
       <div class="kpi-grid" id="kpi-grid"></div>
-
-      <!-- 퍼널 -->
       <div class="funnel-card" id="funnel-card"></div>
 
       <!-- 스탬프 현황 -->
       <div class="section-title"><span class="s-icon">🏷️</span> 스탬프 현황</div>
-      <div class="toggle-row">
-        <button class="toggle-btn active" onclick="toggleStamp('daily',this)">일별</button>
-        <button class="toggle-btn" onclick="toggleStamp('cumul',this)">누적</button>
-      </div>
       <div class="card mb16">
-        <div class="chart-title">일별 스탬프 인증 추이</div>
-        <div class="chart-sub">2026.04.24 – 05.05</div>
-        <div id="chart-daily" class="chart-h220"></div>
+        <div class="card-hd">
+          <div><div class="chart-title">📈 일별 스탬프 인증 추이</div><div class="chart-sub">전체 기간 일별 인증 건수 (최다: 2026-05-05, 602건)</div></div>
+          <div class="toggle-row">
+            <button class="toggle-btn active" onclick="toggleStamp('daily',this)">일별</button>
+            <button class="toggle-btn" onclick="toggleStamp('cumul',this)">누적</button>
+          </div>
+        </div>
+        <div id="chart-daily" class="chart-h240"></div>
       </div>
 
       <!-- 장소 분석 -->
       <div class="section-title"><span class="s-icon">📍</span> 장소 분석</div>
       <div class="grid2 mb16">
         <div class="card">
-          <div class="chart-title">장소별 스탬프 인증수</div>
-          <div class="chart-sub">인증 건수 기준</div>
-          <div id="chart-place-stamp" class="chart-h260"></div>
+          <div class="chart-title">📊 장소별 스탬프 인증수</div>
+          <div class="chart-sub">인증 건수 기준 상위 10개 장소</div>
+          <div id="chart-place-stamp" class="chart-h300"></div>
         </div>
         <div class="card">
-          <div class="chart-title">장소별 스탬프 비중</div>
-          <div class="chart-sub">도넛 세그먼트</div>
-          <div id="chart-donut" class="chart-h260"></div>
+          <div class="chart-title">🍩 장소별 스탬프 비중</div>
+          <div class="chart-sub">장소별 인증 건수 세그먼트</div>
+          <div id="chart-donut" class="chart-h300"></div>
         </div>
       </div>
       <div class="card mb16">
-        <div class="chart-title">장소별 종합 성과</div>
-        <div class="chart-sub">인증수 · 여행후기 · 전환율 비교</div>
-        <div class="tbl-wrap" id="place-perf-table"></div>
+        <div class="chart-title">📋 장소별 종합 성과</div>
+        <div class="chart-sub">인증수 · 여행후기 · 전환율</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>순위</th><th>장소명</th><th style="text-align:right">스탬프</th><th style="text-align:right">후기</th><th style="text-align:right">전환율</th><th>비중</th><th style="text-align:center">평가</th></tr></thead>
+          <tbody id="place-tbody"></tbody>
+        </table></div>
       </div>
 
-      <!-- 참여자 지역 분포 -->
+      <!-- 지역 분포 -->
       <div class="section-title"><span class="s-icon">🗺️</span> 참여자 지역 분포</div>
       <div class="grid2 mb16">
         <div class="card">
-          <div class="chart-title">선물신청자 지역 분포 (시도별)</div>
-          <div class="chart-sub">선물신청자 주소 기준 · 총 415명</div>
-          <div id="chart-choropleth" class="chart-h320"></div>
+          <div class="chart-title">🗺️ 선물신청자 지역 분포 (시도별)</div>
+          <div class="chart-sub">Choropleth · 선물신청자 주소 기준 415명</div>
+          <div id="chart-choropleth" class="chart-h360"></div>
         </div>
         <div class="card">
-          <div class="chart-title">시도별 신청자 현황</div>
-          <div class="chart-sub">선물신청자 주소 기준</div>
-          <div id="chart-region-bar" class="chart-h320"></div>
+          <div class="chart-title">📊 시도별 신청자 현황</div>
+          <div class="chart-sub">선물신청자 주소 기준 · 총 415명</div>
+          <div id="chart-region-bar" class="chart-h360"></div>
         </div>
       </div>
 
-      <!-- 선물 & 운영 현황 -->
+      <!-- 선물 & 운영 -->
       <div class="section-title"><span class="s-icon">🎁</span> 선물 &amp; 운영 현황</div>
       <div class="grid2 mb16">
         <div class="card">
-          <div class="chart-title">일별 선물신청 추이</div>
-          <div class="chart-sub">전체 기간 일별 신청 건수</div>
-          <div id="chart-gift-daily" class="chart-h200"></div>
+          <div class="chart-title">📅 일별 선물신청 추이</div>
+          <div class="chart-sub">전체 기간 일별 선물신청 건수</div>
+          <div id="chart-gift-daily" class="chart-h220"></div>
         </div>
         <div class="card">
-          <div class="chart-title">유저별 스탬프 수 분포</div>
-          <div class="chart-sub">1인당 인증 스탬프 수 히스토그램</div>
-          <div id="chart-user-dist" class="chart-h200"></div>
+          <div class="chart-title">👤 유저별 스탬프 수 분포</div>
+          <div class="chart-sub">1인당 인증 스탬프 수 히스토그램 (선물 기준: 8개)</div>
+          <div id="chart-user-dist" class="chart-h220"></div>
         </div>
       </div>
       <div class="card mb16">
-        <div class="chart-title">시간대별 인증 패턴</div>
-        <div class="chart-sub">0–20시 인증 건수 분포</div>
-        <div id="chart-hour" class="chart-h180"></div>
+        <div class="chart-title">⏰ 시간대별 인증 패턴</div>
+        <div class="chart-sub">0–20시 인증 건수 분포 · 피크: 12시 (681건)</div>
+        <div id="chart-hour" class="chart-h200"></div>
       </div>
+    </div>
 
-    </div><!-- /dashboard -->
-
-    <!-- ==================== GIFT ==================== -->
+    <!-- ============ GIFT ============ -->
     <div class="page" id="page-gift"></div>
 
-    <!-- ==================== REVIEW ==================== -->
+    <!-- ============ REVIEW ============ -->
     <div class="page" id="page-review"></div>
 
-    <!-- ==================== NOTICE ==================== -->
+    <!-- ============ NOTICE ============ -->
     <div class="page" id="page-notice"></div>
 
-    <!-- ==================== MANUAL ==================== -->
+    <!-- ============ MANUAL ============ -->
     <div class="page" id="page-manual"></div>
 
-    <!-- ==================== RECEIPT ==================== -->
+    <!-- ============ RECEIPT ============ -->
     <div class="page" id="page-receipt"></div>
 
-    <!-- ==================== STORE ==================== -->
+    <!-- ============ STORE ============ -->
     <div class="page" id="page-store"></div>
 
-    <!-- ==================== REPORT ==================== -->
+    <!-- ============ REPORT ============ -->
     <div class="page" id="page-report"></div>
 
-    <!-- ==================== FRAUD ==================== -->
+    <!-- ============ FRAUD ============ -->
     <div class="page" id="page-fraud"></div>
 
   </main>
 </div>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-  <div class="modal" id="modal" onclick="event.stopPropagation()">
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
     <div class="modal-title" id="modal-title"></div>
     <div class="modal-body" id="modal-body"></div>
