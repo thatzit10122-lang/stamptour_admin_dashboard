@@ -1,212 +1,249 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>스탬프투어 관리자 대시보드</title>
-<link rel="stylesheet" href="style.css">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>스탬프투어 관리자 대시보드 · 함평나비대축제 2026</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <!-- 스타일시트 -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-icon">🗺️</div>
-    <div class="logo-text">
-      <div class="logo-title">스탬프투어</div>
-      <div class="logo-sub">ADMIN · 함평나비대축제 2026</div>
-    </div>
-  </div>
-  <nav class="sidebar-nav">
-    <div class="nav-section">
-      <div class="nav-label">메인</div>
-      <a class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
-        <span class="nav-icon">◉</span><span>대시보드</span>
-      </a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-label">운영</div>
-      <a class="nav-item" data-page="notice" onclick="showPage('notice',this)">
-        <span class="nav-icon">📢</span><span>공지사항</span>
-      </a>
-      <a class="nav-item" data-page="gift" onclick="showPage('gift',this)">
-        <span class="nav-icon">🎁</span><span>선물 신청자 관리</span>
-        <span class="nav-badge pending" id="badge-gift">115</span>
-      </a>
-      <a class="nav-item" data-page="review" onclick="showPage('review',this)">
-        <span class="nav-icon">✍️</span><span>후기 관리</span>
-      </a>
-      <a class="nav-item" data-page="manual" onclick="showPage('manual',this)">
-        <span class="nav-icon">✅</span><span>수동 인증 요청</span>
-        <span class="nav-badge alert">3</span>
-      </a>
-      <a class="nav-item" data-page="receipt" onclick="showPage('receipt',this)">
-        <span class="nav-icon">🧾</span><span>영수증 이벤트</span>
-      </a>
-      <a class="nav-item" data-page="store" onclick="showPage('store',this)">
-        <span class="nav-icon">🏪</span><span>상점 관리</span>
-      </a>
-    </div>
-    <div class="nav-section">
-      <div class="nav-label">분석</div>
-      <a class="nav-item" data-page="report" onclick="showPage('report',this)">
-        <span class="nav-icon">📊</span><span>상세 보고서</span>
-      </a>
-      <a class="nav-item" data-page="fraud" onclick="showPage('fraud',this)">
-        <span class="nav-icon">⚠️</span><span>부정사용 관리</span>
-        <span class="nav-badge alert">10</span>
-      </a>
-    </div>
-  </nav>
-  <div class="sidebar-user">
-    <div class="user-avatar">관</div>
-    <div class="user-info">
-      <div class="user-name">함평군청 담당자</div>
-      <div class="user-role">관리자</div>
-    </div>
-  </div>
-</aside>
-
-<!-- MAIN -->
-<div class="main-wrap">
-  <header class="topbar">
-    <div class="topbar-left">
-      <div class="topbar-title" id="topbar-title">대시보드</div>
-      <div class="topbar-sub">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
-    </div>
-    <div class="topbar-right" id="topbar-actions">
-      <button class="btn btn-outline">⬇ 보고서 다운로드</button>
-    </div>
-  </header>
-
-  <main class="content">
-
-    <!-- ============ DASHBOARD ============ -->
-    <div class="page active" id="page-dashboard">
-      <div class="alert-bar">
-        <span class="alert-dot"></span>
-        <strong>부정사용 의심 10건</strong> 감지 — 동일 위치 반복 인증 패턴 확인 필요
-        <button class="alert-link" onclick="showPage('fraud',document.querySelector('[data-page=fraud]'))">바로 확인 →</button>
+  <!-- ════════════════════════════════════════════
+       사이드바
+  ════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-icon">🗺️</div>
+      <div>
+        <div class="logo-title">스탬프투어</div>
+        <div class="logo-sub">ADMIN · 함평나비대축제 2026</div>
       </div>
-      <div class="kpi-grid" id="kpi-grid"></div>
-      <div class="funnel-card" id="funnel-card"></div>
+    </div>
 
-      <!-- 스탬프 현황 -->
-      <div class="section-title"><span class="s-icon">🏷️</span> 스탬프 현황</div>
-      <div class="card mb16">
-        <div class="card-hd">
-          <div><div class="chart-title">📈 일별 스탬프 인증 추이</div><div class="chart-sub">전체 기간 일별 인증 건수 (최다: 2026-05-05, 602건)</div></div>
-          <div class="toggle-row">
-            <button class="toggle-btn active" onclick="toggleStamp('daily',this)">일별</button>
-            <button class="toggle-btn" onclick="toggleStamp('cumul',this)">누적</button>
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-label">메인</div>
+        <div class="nav-item active" data-page="dashboard">
+          <span class="nav-ic">◉</span> 대시보드
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">운영</div>
+        <div class="nav-item" data-page="notice">
+          <span class="nav-ic">📢</span> 공지사항
+        </div>
+        <div class="nav-item" data-page="gift">
+          <span class="nav-ic">🎁</span> 선물 신청자 관리
+          <span class="nav-badge pending" id="badge-gift">—</span>
+        </div>
+        <div class="nav-item" data-page="review">
+          <span class="nav-ic">✍️</span> 후기 관리
+        </div>
+        <div class="nav-item" data-page="manual">
+          <span class="nav-ic">✅</span> 수동 인증 요청
+          <span class="nav-badge alert">3</span>
+        </div>
+        <div class="nav-item" data-page="receipt">
+          <span class="nav-ic">🧾</span> 영수증 이벤트
+        </div>
+        <div class="nav-item" data-page="store">
+          <span class="nav-ic">🏪</span> 상점 관리
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">분석</div>
+        <div class="nav-item" data-page="report">
+          <span class="nav-ic">📊</span> 상세 보고서
+        </div>
+        <div class="nav-item" data-page="fraud">
+          <span class="nav-ic">⚠️</span> 부정사용 관리
+          <span class="nav-badge alert" id="badge-fraud">—</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-avatar">관</div>
+      <div>
+        <div class="user-name">함평군청 담당자</div>
+        <div class="user-role">관리자</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ════════════════════════════════════════════
+       메인 컨텐츠
+  ════════════════════════════════════════════ -->
+  <div class="main">
+
+    <!-- 탑바 -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbar-title">대시보드</div>
+        <div class="topbar-sub">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
+      </div>
+      <div class="topbar-right" id="topbar-actions"></div>
+    </header>
+
+    <!-- 페이지 컨테이너 -->
+    <div class="content" id="content">
+
+      <!-- 로딩 스피너 (초기 API 호출 중) -->
+      <div class="loading-wrap" id="loading">
+        <div class="spinner"></div>
+        <p>데이터를 불러오는 중...</p>
+      </div>
+
+      <!-- ── 대시보드 ── -->
+      <div class="page" id="pg-dashboard">
+
+        <div class="alert-bar" id="fraud-alert">
+          <span class="alert-dot"></span>
+          <strong id="fraud-alert-text">부정사용 의심</strong> 감지 — 동일 위치 반복 인증 패턴
+          <button class="alert-link" onclick="App.goPage('fraud')">바로 확인 →</button>
+        </div>
+
+        <!-- KPI 카드 -->
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <!-- 참여 퍼널 -->
+        <div class="funnel-card" id="funnel-card"></div>
+
+        <!-- 스탬프 현황 -->
+        <div class="section-title"><span class="s-icon">🏷️</span> 스탬프 현황</div>
+        <div class="card mb">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📈 일별 스탬프 인증 추이</div>
+              <div class="card-sub">전체 기간 일별 스탬프 인증 건수</div>
+            </div>
+            <div class="toggle-row">
+              <button class="toggle-btn on" id="btn-daily" onclick="Charts.toggleStamp('daily')">일별</button>
+              <button class="toggle-btn" id="btn-cumul" onclick="Charts.toggleStamp('cumul')">누적</button>
+            </div>
+          </div>
+          <div id="chart-daily" class="chart h240"></div>
+        </div>
+
+        <!-- 장소 분석 -->
+        <div class="section-title"><span class="s-icon">📍</span> 장소 분석</div>
+        <div class="grid2 mb">
+          <div class="card">
+            <div class="card-title">📊 장소별 스탬프 인증수</div>
+            <div class="card-sub">인증 건수 기준</div>
+            <div id="chart-place-bar" class="chart h300"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">🍩 장소별 스탬프 비중</div>
+            <div class="card-sub">도넛 세그먼트</div>
+            <div id="chart-donut" class="chart h300"></div>
           </div>
         </div>
-        <div id="chart-daily" class="chart-h240"></div>
-      </div>
+        <div class="card mb">
+          <div class="card-title">📋 장소별 종합 성과</div>
+          <div class="card-sub">인증수 · 여행후기 · 전환율</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>순위</th><th>장소명</th>
+                  <th class="right">스탬프</th><th class="right">후기</th>
+                  <th class="right">전환율</th><th>비중</th>
+                  <th class="center">평가</th>
+                </tr>
+              </thead>
+              <tbody id="place-tbody"></tbody>
+            </table>
+          </div>
+        </div>
 
-      <!-- 장소 분석 -->
-      <div class="section-title"><span class="s-icon">📍</span> 장소 분석</div>
-      <div class="grid2 mb16">
-        <div class="card">
-          <div class="chart-title">📊 장소별 스탬프 인증수</div>
-          <div class="chart-sub">인증 건수 기준 상위 10개 장소</div>
-          <div id="chart-place-stamp" class="chart-h300"></div>
+        <!-- 지역 분포 -->
+        <div class="section-title"><span class="s-icon">🗺️</span> 참여자 지역 분포</div>
+        <div class="grid2 mb">
+          <div class="card">
+            <div class="card-title">🗺️ 선물신청자 지역 분포</div>
+            <div class="card-sub">시도별 신청자 버블 지도</div>
+            <div id="chart-map" class="chart h360"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">📊 시도별 신청자 현황</div>
+            <div class="card-sub">선물신청자 주소 기준</div>
+            <div id="chart-region" class="chart h360"></div>
+          </div>
         </div>
-        <div class="card">
-          <div class="chart-title">🍩 장소별 스탬프 비중</div>
-          <div class="chart-sub">장소별 인증 건수 세그먼트</div>
-          <div id="chart-donut" class="chart-h300"></div>
-        </div>
-      </div>
-      <div class="card mb16">
-        <div class="chart-title">📋 장소별 종합 성과</div>
-        <div class="chart-sub">인증수 · 여행후기 · 전환율</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>순위</th><th>장소명</th><th style="text-align:right">스탬프</th><th style="text-align:right">후기</th><th style="text-align:right">전환율</th><th>비중</th><th style="text-align:center">평가</th></tr></thead>
-          <tbody id="place-tbody"></tbody>
-        </table></div>
-      </div>
 
-      <!-- 지역 분포 -->
-      <div class="section-title"><span class="s-icon">🗺️</span> 참여자 지역 분포</div>
-      <div class="grid2 mb16">
-        <div class="card">
-          <div class="chart-title">🗺️ 선물신청자 지역 분포 (시도별)</div>
-          <div class="chart-sub">Choropleth · 선물신청자 주소 기준 415명</div>
-          <div id="chart-choropleth" class="chart-h360"></div>
+        <!-- 선물 & 운영 현황 -->
+        <div class="section-title"><span class="s-icon">🎁</span> 선물 &amp; 운영 현황</div>
+        <div class="grid2 mb">
+          <div class="card">
+            <div class="card-title">📅 일별 선물신청 추이</div>
+            <div class="card-sub">전체 기간 일별 신청 건수</div>
+            <div id="chart-gift-daily" class="chart h220"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">👤 유저별 스탬프 수 분포</div>
+            <div class="card-sub">1인당 인증 스탬프 수 히스토그램</div>
+            <div id="chart-dist" class="chart h220"></div>
+          </div>
         </div>
-        <div class="card">
-          <div class="chart-title">📊 시도별 신청자 현황</div>
-          <div class="chart-sub">선물신청자 주소 기준 · 총 415명</div>
-          <div id="chart-region-bar" class="chart-h360"></div>
+        <div class="card mb">
+          <div class="card-title">⏰ 시간대별 인증 패턴</div>
+          <div class="card-sub">시간대별 인증 건수 분포</div>
+          <div id="chart-hour" class="chart h200"></div>
         </div>
-      </div>
 
-      <!-- 선물 & 운영 -->
-      <div class="section-title"><span class="s-icon">🎁</span> 선물 &amp; 운영 현황</div>
-      <div class="grid2 mb16">
-        <div class="card">
-          <div class="chart-title">📅 일별 선물신청 추이</div>
-          <div class="chart-sub">전체 기간 일별 선물신청 건수</div>
-          <div id="chart-gift-daily" class="chart-h220"></div>
-        </div>
-        <div class="card">
-          <div class="chart-title">👤 유저별 스탬프 수 분포</div>
-          <div class="chart-sub">1인당 인증 스탬프 수 히스토그램 (선물 기준: 8개)</div>
-          <div id="chart-user-dist" class="chart-h220"></div>
-        </div>
-      </div>
-      <div class="card mb16">
-        <div class="chart-title">⏰ 시간대별 인증 패턴</div>
-        <div class="chart-sub">0–20시 인증 건수 분포 · 피크: 12시 (681건)</div>
-        <div id="chart-hour" class="chart-h200"></div>
-      </div>
+      </div><!-- /pg-dashboard -->
+
+      <!-- ── 다른 페이지들 (JS로 동적 렌더) ── -->
+      <div class="page" id="pg-gift"></div>
+      <div class="page" id="pg-review"></div>
+      <div class="page" id="pg-notice"></div>
+      <div class="page" id="pg-manual"></div>
+      <div class="page" id="pg-receipt"></div>
+      <div class="page" id="pg-store"></div>
+      <div class="page" id="pg-report"></div>
+      <div class="page" id="pg-fraud"></div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+  <!-- ════════════════════════════════════════════
+       모달
+  ════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)UI.closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="UI.closeModal()">✕</button>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-body" id="modal-body"></div>
     </div>
-
-    <!-- ============ GIFT ============ -->
-    <div class="page" id="page-gift"></div>
-
-    <!-- ============ REVIEW ============ -->
-    <div class="page" id="page-review"></div>
-
-    <!-- ============ NOTICE ============ -->
-    <div class="page" id="page-notice"></div>
-
-    <!-- ============ MANUAL ============ -->
-    <div class="page" id="page-manual"></div>
-
-    <!-- ============ RECEIPT ============ -->
-    <div class="page" id="page-receipt"></div>
-
-    <!-- ============ STORE ============ -->
-    <div class="page" id="page-store"></div>
-
-    <!-- ============ REPORT ============ -->
-    <div class="page" id="page-report"></div>
-
-    <!-- ============ FRAUD ============ -->
-    <div class="page" id="page-fraud"></div>
-
-  </main>
-</div>
-
-<!-- MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal" id="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    <div class="modal-title" id="modal-title"></div>
-    <div class="modal-body" id="modal-body"></div>
   </div>
-</div>
 
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
+  <!-- 토스트 -->
+  <div class="toast" id="toast"></div>
 
-<script src="data.js"></script>
-<script src="charts.js"></script>
-<script src="pages.js"></script>
-<script src="app.js"></script>
+  <!-- ════════════════════════════════════════════
+       스크립트 로드 순서 중요:
+       1. api.js   → 데이터 fetch 담당 (API 교체 시 이 파일만 수정)
+       2. charts.js → Plotly 차트 렌더링
+       3. pages.js  → 각 페이지 HTML 빌드
+       4. app.js    → 네비게이션·초기화 진입점
+  ════════════════════════════════════════════ -->
+  <!-- 📌 MOCK 데이터 (실제 API 연동 시 이 줄 제거) -->
+  <script src="mock-data.js"></script>
+  <script src="api.js"></script>
+  <script src="charts.js"></script>
+  <script src="pages.js"></script>
+  <script src="app.js"></script>
+
 </body>
 </html>
