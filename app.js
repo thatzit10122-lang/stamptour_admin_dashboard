@@ -9,8 +9,8 @@
 /* ── 페이지 메타 ── */
 const PAGE_META = {
   dashboard: { title: '대시보드' },
-  gift:      { title: '선물 신청자 관리' },
-  review:    { title: '후기 관리' },
+  gift:      { title: '선물 신청자' },
+  review:    { title: '후기' },
   notice:    { title: '공지사항' },
   manual:    { title: '수동 인증 요청' },
   receipt:   { title: '영수증 이벤트' },
@@ -40,8 +40,20 @@ const _rendered = new Set();
 async function initApp() {
   try {
     /* ── 데이터 로드 ──
-     * ▼ TODO: API 연동 시 fetchDashboard()는 api.js의 설정만 변경하면 됨
-     *         이 코드는 수정 불필요
+     * ▼ TODO(API): 대시보드 초기 데이터 연동
+     * 실제 서버 API 연동 시 `api.js`의 `fetchDashboard` 내 설정을 변경하십시오.
+     * 서버에서는 다음의 형태를 포함하는 JSON을 반환해야 합니다:
+     * {
+     *   "summary": { "total_stamps": 12053, "total_reviews": 842, "total_gifts": 2530, "gifts_wait": 182, "conv_rate": 20.9 },
+     *   "daily_stamps": [ { "date": "2026-04-24", "count": 210 }, ... ],
+     *   "cumul_vals": [ 210, 540, 1050, ... ],
+     *   "place_data": [ { "place": "나비생태관", "stamps": 520, "reviews": 45, "conv": 8.6 }, ... ],
+     *   "gift_daily": [ { "date": "2026-04-24", "count": 12 }, ... ],
+     *   "hour_dist": [ { "hour": 9, "count": 150 }, ... ],
+     *   "dist": [ { "stamps": 1, "users": 1500 }, ... ],
+     *   "region": [ { "name": "서울", "count": 253 }, ... ],
+     *   "fraud_users": [ ... ]
+     * }
      */
     const data = await API.fetchDashboard();
     /* ▲ */
@@ -99,7 +111,7 @@ async function goPage(id) {
   const navItem = document.querySelector(`.nav-item[data-page="${id}"]`);
   if (navItem) navItem.classList.add('active');
 
-  /* 탑바 제목 */
+  /* 탑바 제목 가운데 정렬 */
   const meta = PAGE_META[id] || { title: id };
   document.getElementById('topbar-title').textContent = meta.title;
 
@@ -167,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  /* 모달 바깥 클릭 닫기 */
+/* 모달 바깥 클릭 닫기 */
   document.getElementById('modal-overlay').addEventListener('click', function (e) {
     if (e.target === this) UI.closeModal();
   });
@@ -175,3 +187,78 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 앱 시작 */
   initApp();
 });
+
+/* ════════════════════════════════════════════════
+   월 변경 이벤트 (대시보드 필터)
+════════════════════════════════════════════════ */
+window.onMonthChange = async function() {
+  const sel = document.getElementById('month-selector').value;
+  // 1. 대시보드 차트 갱신
+  if (window._dashData && typeof Charts !== 'undefined') {
+    Charts.setMonthFilter(sel); 
+  }
+
+  // 2. 다른 메뉴에도 필터 반영을 위해 기존 캐시 무효화
+  _rendered.delete('gift');
+  _rendered.delete('review');
+
+  // 3. 현재 보고 있는 페이지가 선물신청자나 후기 메뉴라면 즉시 다시 렌더링
+  const activeNav = document.querySelector('.nav-item.active');
+  const currentPage = activeNav ? activeNav.dataset.page : 'dashboard';
+  if (currentPage === 'gift' || currentPage === 'review') {
+    await goPage(currentPage);
+  }
+};
+
+/* ════════════════════════════════════════════════
+   보고서 내보내기 (PDF 추출)
+════════════════════════════════════════════════ */
+window.exportDashboardPDF = function() {
+  const element = document.getElementById('content');
+  if (!element) return;
+  
+  UI.toast('보고서를 생성 중입니다. 잠시만 기다려주세요...');
+  
+  const opt = {
+    margin:       10,
+    filename:     '스탬프투어_대시보드_보고서.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
+  
+  // 요소의 원래 배경색을 보존하면서 캡처
+  const originalBg = element.style.background;
+  element.style.background = '#0d1117'; // 다크모드 배경색 명시
+  
+  html2pdf().set(opt).from(element).save().then(() => {
+    element.style.background = originalBg;
+    UI.toast('보고서 다운로드가 완료되었습니다.');
+  }).catch(err => {
+    element.style.background = originalBg;
+    UI.toast('보고서 생성 중 오류가 발생했습니다.', true);
+    console.error(err);
+  });
+};
+
+/* ════════════════════════════════════════════════
+   테마 모드 변경 (다크 / 화이트)
+════════════════════════════════════════════════ */
+window.toggleTheme = function(mode) {
+  const isLight = mode === 'light';
+  if (isLight) {
+    document.body.classList.add('light-mode');
+  } else {
+    document.body.classList.remove('light-mode');
+  }
+  
+  if (typeof Charts !== 'undefined' && Charts.setTheme) {
+    Charts.setTheme(isLight);
+  }
+  
+  // 현재 페이지의 차트들을 다시 그리기 위해 렌더 캐시 초기화 및 페이지 리로드
+  _rendered.clear();
+  const activeNav = document.querySelector('.nav-item.active');
+  const currentPage = activeNav ? activeNav.dataset.page : 'dashboard';
+  goPage(currentPage);
+};

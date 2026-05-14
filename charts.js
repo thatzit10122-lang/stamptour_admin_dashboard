@@ -8,9 +8,9 @@
  */
 
 /* ── Plotly 공통 설정 ── */
-const _BG   = 'rgba(0,0,0,0)';
-const _FONT = { family: "'Noto Sans KR', system-ui, sans-serif", color: '#64748b', size: 12 };
-const _GC   = 'rgba(30,45,69,0.85)';
+let _BG   = 'rgba(0,0,0,0)';
+let _FONT = { family: "'Noto Sans KR', system-ui, sans-serif", color: '#94a3b8', size: 12 };
+let _GC   = 'rgba(30,45,69,0.85)';
 const _CFG  = { responsive: true, displayModeBar: false };
 const _PAL  = ['#3b82f6','#22d3ee','#a78bfa','#10b981','#f97316','#f59e0b','#ec4899','#6366f1','#14b8a6','#84cc16'];
 
@@ -36,6 +36,30 @@ let _stampMode = 'daily';
 /* 대시보드 데이터 캐시 */
 let _data = null;
 
+/* 월 필터 (all, 2026-04, 2026-05) */
+let _monthFilter = '2026-05';
+
+function setMonthFilter(month) {
+  _monthFilter = month;
+
+  // 타이틀 변경 로직 추가
+  const titleEl = document.getElementById('chart-stamp-title');
+  const subEl = document.getElementById('chart-stamp-sub');
+  if (titleEl && subEl) {
+    if (month === 'all') {
+      titleEl.textContent = '📈 월별 스탬프 인증 추이';
+      subEl.textContent = '전체 기간 월별 스탬프 인증 건수';
+    } else {
+      titleEl.textContent = '📈 일별 스탬프 인증 추이';
+      subEl.textContent = '해당 월 일별 스탬프 인증 건수';
+    }
+  }
+
+  // 차트들 갱신
+  drawStampTrend();
+  drawGiftDaily();
+}
+
 /**
  * 데이터 주입 (app.js에서 API 응답 후 호출)
  * @param {object} data - fetchDashboard() 응답
@@ -51,29 +75,91 @@ function setData(data) {
 function drawStampTrend() {
   if (!_data) return;
 
-  const labels = _data.daily_stamps.map(d => d.date.slice(5).replace('-', '/'));
-  const daily  = _data.daily_stamps.map(d => d.count);
-  const cumul  = _data.cumul_vals;
+  let labels = [];
+  let vals = [];
 
-  const vals  = _stampMode === 'daily' ? daily : cumul;
+  if (_monthFilter === 'all') {
+    // 월별 집계
+    const monthlyMap = {};
+    _data.daily_stamps.forEach(d => {
+      const monthStr = d.date.slice(0, 7); // yyyy-mm
+      monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + d.count;
+    });
+    
+    // 키 정렬
+    const sortedMonths = Object.keys(monthlyMap).sort();
+    labels = sortedMonths.map(m => m.replace('-', '/'));
+    
+    if (_stampMode === 'daily') {
+      vals = sortedMonths.map(m => monthlyMap[m]);
+    } else {
+      let sum = 0;
+      vals = sortedMonths.map(m => { sum += monthlyMap[m]; return sum; });
+    }
+  } else {
+    // 해당 월만 필터링 (일별)
+    const filtered = _data.daily_stamps.filter(d => d.date.startsWith(_monthFilter));
+    labels = filtered.map(d => d.date.slice(5).replace('-', '/'));
+    
+    if (_stampMode === 'daily') {
+      vals = filtered.map(d => d.count);
+    } else {
+      let sum = 0;
+      vals = filtered.map(d => { sum += d.count; return sum; });
+    }
+  }
+
   const color = _stampMode === 'daily' ? '#3b82f6' : '#22d3ee';
   const fill  = _stampMode === 'daily' ? 'rgba(59,130,246,0.1)' : 'rgba(34,211,238,0.1)';
-  const peak  = Math.max(...vals);
+  const peak  = vals.length ? Math.max(...vals) : 0;
 
-  Plotly.newPlot('chart-daily', [{
+  let trace = {
     x: labels, y: vals,
-    type: 'scatter', mode: 'lines+markers',
-    line:   { color, width: 2.5, shape: 'spline' },
-    marker: {
+    hovertemplate: '<b>%{x}</b><br>%{y:,}건<extra></extra>',
+  };
+
+  if (_monthFilter === 'all') {
+    // 전체 기간(월별 집계)일 때는 막대 그래프로 표시
+    trace.type = 'bar';
+    trace.marker = {
+      color: vals.map(v => v === peak ? '#f97316' : color),
+      opacity: 0.85,
+      line: { width: 0 }
+    };
+    trace.text = vals.map(v => v === peak ? v + '' : '');
+    trace.textposition = 'none'; // 텍스트 겹침 방지
+  } else {
+    // 특정 월(일별)일 때는 기존 꺾은선 그래프 유지
+    trace.type = 'scatter';
+    trace.mode = 'lines+markers';
+    trace.line = { color, width: 2.5, shape: 'spline' };
+    trace.marker = {
       color: vals.map(v => v === peak ? '#f97316' : color),
       size:  vals.map(v => v === peak ? 10 : 6),
       line:  { width: 2, color: '#0d1117' },
-    },
-    fill: 'tozeroy', fillcolor: fill,
-    hovertemplate: '<b>%{x}</b><br>%{y:,}건<extra></extra>',
-  }], _layout(
-    { t: 10, r: 20, b: 40, l: 52 },
-    { xaxis: _ax({ showgrid: false }), yaxis: _ax({ tickformat: ',' }) }
+    };
+    trace.fill = 'tozeroy';
+    trace.fillcolor = fill;
+  }
+
+  const peakI = vals.indexOf(peak);
+  const layoutParams = { 
+    xaxis: _ax({ showgrid: false }), 
+    yaxis: _ax({ tickformat: ',', range: [0, Math.max(1, peak * 1.1)] }) 
+  };
+
+  if (_monthFilter === 'all' && peak > 0) {
+    layoutParams.annotations = [{
+      x: labels[peakI], y: peak * 1.05,
+      text: `${peak}`, showarrow: false,
+      font: { size: 13, color: '#ffffff', weight: 'bold' },
+      bgcolor: '#f97316', borderpad: 5, bordercolor: '#f97316', borderwidth: 1, border_radius: 6
+    }];
+  }
+
+  Plotly.newPlot('chart-daily', [trace], _layout(
+    { t: 30, r: 20, b: 40, l: 52 },
+    layoutParams
   ), _CFG);
 }
 
@@ -167,7 +253,8 @@ function drawMap() {
     type: 'scattergeo',
     lat:  items.map(r => _REGION_COORDS[r.name][0]),
     lon:  items.map(r => _REGION_COORDS[r.name][1]),
-    text: items.map(r => `<b>${r.name}</b><br>${r.count}명 (${(r.count/total*100).toFixed(1)}%)`),
+    customdata: items.map(r => [r.name, r.count]),
+    text: items.map(r => `${(r.count/total*100).toFixed(1)}%`),
     mode: 'markers+text',
     marker: {
       size:  items.map(r => Math.max(12, r.count / maxV * 65)),
@@ -183,18 +270,18 @@ function drawMap() {
         x: 1.0, bgcolor: 'rgba(0,0,0,0)', bordercolor: 'rgba(0,0,0,0)',
       },
     },
-    textposition: items.map(r => ['광주','전남'].includes(r.name) ? 'top center' : 'top right'),
-    textfont: { ..._FONT, size: 10.5, color: '#e2e8f0' },
-    hovertemplate: '%{text}<extra></extra>',
+    textposition: items.map(r => ['광주','전남'].includes(r.name) ? 'bottom right' : 'top right'),
+    textfont: { ..._FONT, size: 12, color: '#ffffff', weight: 'bold' },
+    hovertemplate: '<b>%{customdata[0]}</b><br>%{customdata[1]}명 (%{text})<extra></extra>',
   }], {
     paper_bgcolor: _BG,
     font: _FONT,
     geo: {
       scope: 'asia', resolution: 50,
-      center: { lat: 36.5, lon: 127.5 },
-      projection: { type: 'mercator', scale: 5 },
-      lataxis: { range: [33, 39] },
-      lonaxis: { range: [124, 131] },
+      center: { lat: 35.8, lon: 127.5 },
+      projection: { type: 'mercator' },
+      lataxis: { range: [33.0, 38.5] },
+      lonaxis: { range: [125.5, 130.0] },
       showland: true, landcolor: '#1a2233',
       showcoastlines: true, coastlinecolor: '#253352', coastlinewidth: 1,
       showocean: true, oceancolor: '#0d1117',
@@ -214,7 +301,8 @@ function drawRegionBar() {
   if (!_data) return;
 
   const total = _data.summary.total_gifts;
-  const items = _data.region;
+  // 오름차순 정렬하여 가장 많은 것이 상단에 오게 배치
+  const items = [..._data.region].sort((a,b) => a.count - b.count);
 
   Plotly.newPlot('chart-region', [{
     x: items.map(r => r.count),
@@ -245,9 +333,25 @@ function drawGiftDaily(elId) {
   if (!_data) return;
   elId = elId || 'chart-gift-daily';
 
-  const labels = _data.gift_daily.map(d => d.date.slice(5).replace('-', '/'));
-  const vals   = _data.gift_daily.map(d => d.count);
-  const peak   = Math.max(...vals);
+  let labels = [];
+  let vals = [];
+
+  if (_monthFilter === 'all') {
+    const monthlyMap = {};
+    _data.gift_daily.forEach(d => {
+      const monthStr = d.date.slice(0, 7);
+      monthlyMap[monthStr] = (monthlyMap[monthStr] || 0) + d.count;
+    });
+    const sortedMonths = Object.keys(monthlyMap).sort();
+    labels = sortedMonths.map(m => m.replace('-', '/'));
+    vals = sortedMonths.map(m => monthlyMap[m]);
+  } else {
+    const filtered = _data.gift_daily.filter(d => d.date.startsWith(_monthFilter));
+    labels = filtered.map(d => d.date.slice(5).replace('-', '/'));
+    vals   = filtered.map(d => d.count);
+  }
+
+  const peak   = vals.length ? Math.max(...vals) : 0;
   const peakI  = vals.indexOf(peak);
 
   Plotly.newPlot(elId, [{
@@ -259,19 +363,19 @@ function drawGiftDaily(elId) {
       line: { width: 0 },
     },
     text: vals.map((_, i) => i === peakI ? peak + '' : ''),
-    textposition: 'outside',
-    textfont: { size: 11, color: '#f97316' },
+    textposition: 'none', // 텍스트와 어노테이션 겹침 방지
     hovertemplate: '<b>%{x}</b><br>%{y}건<extra></extra>',
     cliponaxis: false,
   }], _layout(
-    { t: 22, r: 16, b: 40, l: 44 },
+    { t: 30, r: 16, b: 40, l: 44 },
     {
       xaxis: _ax({ showgrid: false }),
-      yaxis: _ax(),
+      yaxis: _ax({ range: [0, Math.max(1, peak * 1.1)] }), // 110% 여유 공간
       annotations: [{
-        x: labels[peakI], y: peak + 0.5,
+        x: labels[peakI], y: peak * 1.05,
         text: `최다 ${peak}건`, showarrow: false,
-        font: { size: 10.5, color: '#f97316' },
+        font: { size: 12, color: '#ffffff', weight: 'bold' },
+        bgcolor: '#ef4444', borderpad: 5, bordercolor: '#ef4444', borderwidth: 1, border_radius: 6
       }],
     }
   ), _CFG);
@@ -285,8 +389,9 @@ function drawUserDist(elId) {
   if (!_data) return;
   elId = elId || 'chart-dist';
 
-  const keys = _data.dist.map(d => d.stamps + '개');
-  const vals = _data.dist.map(d => d.users);
+  const filteredDist = _data.dist.filter(d => d.stamps <= 10);
+  const keys = filteredDist.map(d => d.stamps + '개');
+  const vals = filteredDist.map(d => d.users);
   const peak = Math.max(...vals);
 
   Plotly.newPlot(elId, [{
@@ -302,13 +407,13 @@ function drawUserDist(elId) {
     { t: 30, r: 16, b: 44, l: 52 },
     {
       xaxis: _ax({ showgrid: false, title: { text: '스탬프 개수', font: { ..._FONT, size: 11.5 } } }),
-      yaxis: _ax({ title: { text: '유저 수(명)', font: { ..._FONT, size: 11.5 } } }),
+      yaxis: _ax({ title: { text: '유저 수(명)', font: { ..._FONT, size: 11.5 } }, range: [0, Math.max(1, peak * 1.1)] }),
       shapes: [{
-        type: 'line', x0: '8개', x1: '8개', y0: 0, y1: peak * 1.15,
+        type: 'line', x0: '8개', x1: '8개', y0: 0, y1: peak * 1.1,
         line: { color: '#10b981', width: 1.5, dash: 'dot' },
       }],
       annotations: [{
-        x: '8개', y: peak * 1.18,
+        x: '8개', y: peak * 1.05,
         text: '선물 기준(8개)', showarrow: false,
         font: { size: 10, color: '#10b981' }, xanchor: 'center',
       }],
@@ -348,13 +453,13 @@ function drawHourPattern(elId) {
     { t: 22, r: 16, b: 44, l: 56 },
     {
       xaxis: _ax({ showgrid: false, title: { text: '시간대', font: { ..._FONT, size: 11.5 } } }),
-      yaxis: _ax({ tickformat: ',', title: { text: '인증 건수', font: { ..._FONT, size: 11.5 } } }),
+      yaxis: _ax({ tickformat: ',', title: { text: '인증 건수', font: { ..._FONT, size: 11.5 } }, range: [0, Math.max(1, peak * 1.1)] }),
       shapes: [{
-        type: 'rect', x0: '10시', x1: '14시', y0: 0, y1: peak * 1.05,
+        type: 'rect', x0: '10시', x1: '14시', y0: 0, y1: peak * 1.1,
         fillcolor: 'rgba(59,130,246,0.05)', line: { width: 0 }, layer: 'below',
       }],
       annotations: [{
-        x: labels[peakI], y: peak * 1.1,
+        x: labels[peakI], y: peak * 1.05,
         text: '🔥 피크', showarrow: false,
         font: { size: 11, color: '#f97316' }, xanchor: 'center',
       }],
@@ -400,7 +505,7 @@ function drawReviewPlaceBar(elId) {
     barmode: 'group', showlegend: true,
     legend: { font: { ..._FONT, size: 11 }, orientation: 'h', x: 0, y: 1.1, bgcolor: 'rgba(0,0,0,0)' },
     xaxis: _ax({ showgrid: false, tickangle: -30, tickfont: { ..._FONT, size: 10 } }),
-    yaxis: _ax({ tickformat: ',' }),
+    yaxis: _ax({ tickformat: ',', range: [0, Math.max(1, Math.max(...pd.map(p => p.stamps)) * 1.1)] }),
   }), _CFG);
 }
 
@@ -408,6 +513,7 @@ function drawReviewPlaceBar(elId) {
 function drawCumul(elId) {
   if (!_data) return;
   const labels = _data.daily_stamps.map(d => d.date.slice(5).replace('-', '/'));
+  const peak = Math.max(..._data.cumul_vals);
   Plotly.newPlot(elId, [{
     x: labels, y: _data.cumul_vals,
     type: 'scatter', mode: 'lines',
@@ -416,7 +522,7 @@ function drawCumul(elId) {
     hovertemplate: '<b>%{x}</b><br>누적 %{y:,}건<extra></extra>',
   }], _layout(
     { t: 10, r: 20, b: 40, l: 60 },
-    { xaxis: _ax({ showgrid: false }), yaxis: _ax({ tickformat: ',' }) }
+    { xaxis: _ax({ showgrid: false }), yaxis: _ax({ tickformat: ',', range: [0, Math.max(1, peak * 1.1)] }) }
   ), _CFG);
 }
 
@@ -445,6 +551,12 @@ function drawScatter(elId) {
 }
 
 
+/* ── 테마 토글 처리 ── */
+function setTheme(isLight) {
+  _FONT.color = isLight ? '#64748b' : '#94a3b8'; // light mode: slate-500, dark: slate-400
+  _GC         = isLight ? 'rgba(226,232,240,0.85)' : 'rgba(30,45,69,0.85)'; // light: slate-200
+}
+
 /* ── 외부 노출 ── */
 const Charts = {
   setData,
@@ -461,4 +573,6 @@ const Charts = {
   drawCumul,
   drawScatter,
   toggleStamp,
+  setMonthFilter,
+  setTheme,
 };

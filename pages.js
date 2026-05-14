@@ -132,8 +132,24 @@ const _gPer = 30;   /* 페이지당 30건 */
 let _gSort = 'no', _gAsc = true;
 
 async function buildGiftPage(el) {
-  /* ▼ TODO: API 연동 시 fetchGifts()로 서버에서 직접 수신 */
+  /* ▼ TODO(API): 선물 신청자 데이터 연동 
+     - 서버에서 API.fetchGifts()를 호출할 때 필터 조건(월별, 상태 등)을 Query Parameter로 전달하도록 수정해야 합니다. 
+     - (예: GET /api/gifts?month=2026-05)
+     - 현재는 프론트엔드에서 전체 데이터를 가져온 후 필터링하고 있으나, 데이터가 많아지면 서버 사이드 페이지네이션/필터링이 필수입니다.
+     - 예상 응답 배열 객체 구조: { no, nick, name, phone, region, status, date, stamps, review } */
   _gifts = await API.fetchGifts();
+  
+  const selMonth = document.getElementById('month-selector')?.value || 'all';
+  if (selMonth !== 'all') {
+    _gifts = _gifts.filter(g => g.date.startsWith(selMonth));
+  }
+
+  // 동적으로 등급과 초기 상태값 처리 (대기중/처리중 -> 미지급)
+  _gifts = _gifts.map(g => ({
+    ...g,
+    grade: g.no % 2 === 0 ? '함평 10' : '함평 5',
+    status: g.status === '지급완료' ? '지급완료' : '미지급'
+  }));
   /* ▲ */
 
   const done  = _gifts.filter(g => g.status === '지급완료').length;
@@ -155,14 +171,24 @@ async function buildGiftPage(el) {
   </div>
   <div class="card">
     <div class="card-title">📋 선물 신청자 목록</div>
-    <div class="card-sub">총 ${total}명 · 닉네임 클릭 시 유저 정보 페이지로 이동 · 선물지급 체크박스로 즉시 처리</div>
+    <div class="card-sub" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>총 ${total}명 · 닉네임 클릭 시 유저 정보 페이지로 이동 · 선물지급 체크박스로 즉시 처리</div>
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; font-weight:600; color:var(--red);">
+        <input type="checkbox" id="g-ex-fraud" checked onchange="Pages.filterGifts()" style="accent-color:var(--red); width:15px; height:15px;"> 부정 사용 의심자 제외
+      </label>
+    </div>
     <div class="filter-bar">
       <div class="search-wrap"><input id="g-q" type="text" placeholder="닉네임·실명 검색…" oninput="Pages.filterGifts()"></div>
+      <!-- TODO(API): 서버 API 연동 시 아래 선택된 등급(grade) 값을 파라미터로 전송해야 합니다. -->
+      <select class="filter-select" id="g-grade" onchange="Pages.filterGifts()">
+        <option value="">모든 등급</option>
+        <option value="함평 5">함평 5</option>
+        <option value="함평 10">함평 10</option>
+      </select>
       <select class="filter-select" id="g-st" onchange="Pages.filterGifts()">
         <option value="">전체 상태</option>
-        <option value="지급완료">✅ 지급완료</option>
-        <option value="처리중">⏳ 처리중</option>
-        <option value="대기중">🔴 대기중</option>
+        <option value="미지급">🔴 미지급</option>
+        <option value="지급완료">✅ 지급 완료</option>
       </select>
       <select class="filter-select" id="g-rg" onchange="Pages.filterGifts()">
         <option value="">전체 지역</option>
@@ -179,19 +205,19 @@ async function buildGiftPage(el) {
       <table>
         <thead>
           <tr>
-            <th style="width:44px" class="center">
-              <!-- 전체선택 체크박스 -->
-              <input type="checkbox" id="g-chk-all" title="전체 선택"
-                style="width:15px;height:15px;cursor:pointer;accent-color:var(--blue)"
-                onchange="Pages._toggleAllPaid(this.checked)">
-            </th>
-            <th class="sortable" onclick="Pages.sortGifts('no')"># ↕</th>
+            <th class="sortable" onclick="Pages.sortGifts('no')">번호 ↕</th>
+            <th class="sortable" onclick="Pages.sortGifts('date')">선물 신청일 ↕</th>
             <th class="sortable" onclick="Pages.sortGifts('nick')">닉네임 ↕</th>
+            <th class="sortable" onclick="Pages.sortGifts('grade')">등급 ↕</th>
             <th>실명</th>
             <th>전화번호</th>
             <th class="sortable" onclick="Pages.sortGifts('region')">주소 ↕</th>
             <th class="sortable" onclick="Pages.sortGifts('stamps')">후기 ↕</th>
-            <th>선물지급</th>
+            <th class="center" style="width:110px">
+              <div style="display:flex; align-items:center; gap:4px; justify-content:center;">
+                <input type="checkbox" id="g-chk-all" title="전체 선택" style="width:14px;height:14px;cursor:pointer;accent-color:var(--blue)" onchange="Pages._toggleAllPaid(this.checked)"> 전체선택
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody id="g-tbody"></tbody>
@@ -215,15 +241,20 @@ async function buildGiftPage(el) {
 
 function filterGifts() {
   const q  = document.getElementById('g-q')?.value.toLowerCase() || '';
+  const grade = document.getElementById('g-grade')?.value || '';
   const st = document.getElementById('g-st')?.value || '';
   const rg = document.getElementById('g-rg')?.value || '';
   const rv = document.getElementById('g-rv')?.value || '';
+  const exFraud = document.getElementById('g-ex-fraud')?.checked;
+
   _gFiltered = _gifts.filter(g => {
     if (q  && !g.nick.toLowerCase().includes(q) && !g.name.includes(q)) return false;
+    if (grade && g.grade !== grade) return false;
     if (st && g.status !== st) return false;
     if (rg && g.region !== rg) return false;
     if (rv === 'true'  && !g.review) return false;
     if (rv === 'false' && g.review)  return false;
+    if (exFraud && g.fraud) return false;
     return true;
   });
   _gPage = 1;
@@ -260,18 +291,8 @@ function _renderGiftTable() {
     const fraudTag = isFraud ? ' <span class="badge badge-red" style="font-size:9px">부정</span>' : '';
 
     return `<tr id="g-row-${g.no}" class="${isPaid ? 'paid-row' : ''}">
-      <td class="center">
-        <!-- ──────────────────────────────────────────────────────────
-          선물지급 체크박스
-          변경 시 Pages._onPaidChange(no, checked) 호출 →
-          서버 PATCH /api/gifts/:no { status } 전송
-        ────────────────────────────────────────────────────────── -->
-        <input type="checkbox" class="g-chk-row" data-no="${g.no}"
-          ${isPaid ? 'checked' : ''}
-          style="${chkStyle}"
-          onchange="Pages._onPaidChange(${g.no}, this.checked)">
-      </td>
       <td class="text-muted text-sm">${g.no}</td>
+      <td class="text-muted">${g.date}</td>
       <td>
         <span ${nickCls}
           onclick="Pages.openUserPage('${g.nick}')"
@@ -279,6 +300,7 @@ function _renderGiftTable() {
           ${g.nick}${fraudTag}
         </span>
       </td>
+      <td style="font-weight:600; color:var(--blue)">${g.grade}</td>
       <td>${g.name}</td>
       <td class="mono text-muted">${g.phone}</td>
       <td style="font-size:12px">${g.addr}</td>
@@ -287,10 +309,13 @@ function _renderGiftTable() {
           ? `<span class="badge badge-green">✓ ${g.reviewCnt ?? ''}건</span>`
           : '<span class="badge badge-gray">—</span>'}
       </td>
-      <td class="center">
-        ${isPaid
-          ? '<span class="badge badge-green">✅ 지급완료</span>'
-          : '<span class="badge badge-red">🔴 미지급</span>'}
+      <td class="center" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+        <input type="checkbox" class="g-chk-row" data-no="${g.no}" ${isPaid ? 'checked' : ''} style="${chkStyle}" onchange="Pages._onPaidChange(${g.no}, this.checked)">
+        <!-- TODO(API): 아래 선물지급 Select Box의 값이 변경될 때마다 서버에 업데이트 데이터를 전송해야 합니다. (이벤트는 _onPaidChange 내에서 처리되도록 연결됨) -->
+        <select class="filter-select" style="padding:4px 8px; font-size:12px; height:auto; border-radius:4px;" onchange="Pages._onPaidChange(${g.no}, this.value === '지급완료')">
+          <option value="미지급" ${!isPaid ? 'selected' : ''}>🔴 미지급</option>
+          <option value="지급완료" ${isPaid ? 'selected' : ''}>✅ 지급 완료</option>
+        </select>
       </td>
     </tr>`;
   }).join('');
@@ -328,7 +353,7 @@ async function _onPaidChange(no, paid) {
   const g = _gifts.find(x => x.no === no);
   if (!g) return;
 
-  const newStatus = paid ? '지급완료' : '대기중';
+  const newStatus = paid ? '지급완료' : '미지급';
 
   /* 낙관적 UI 업데이트 — 서버 응답 전에 먼저 화면에 반영 */
   g.status = newStatus;
@@ -336,9 +361,10 @@ async function _onPaidChange(no, paid) {
   if (row) {
     const badgeCell = row.querySelector('td:last-child');
     if (badgeCell) {
-      badgeCell.innerHTML = paid
-        ? '<span class="badge badge-green">✅ 지급완료</span>'
-        : '<span class="badge badge-red">🔴 미지급</span>';
+      const chk = badgeCell.querySelector('input[type="checkbox"]');
+      const sel = badgeCell.querySelector('select');
+      if (chk) chk.checked = paid;
+      if (sel) sel.value = newStatus;
     }
     row.classList.toggle('paid-row', paid);
   }
@@ -387,40 +413,125 @@ function _syncSelectAll() {
 }
 
 /* 닉네임 클릭 → 유저 정보 페이지 이동 */
-function openUserPage(nick) {
-  const g = _gifts.find(x => x.nick === nick);
-  if (!g) return;
-  /* ▼ TODO: 실제 유저 정보 페이지 URL로 교체 */
-  // window.location.href = `/admin/users/${encodeURIComponent(nick)}`;
-  /* ▲ */
+async function openUserPage(nick) {
+  let g = _gifts.find(x => x.nick === nick);
+  
+  // 아직 _gifts가 로드되지 않았거나 찾지 못한 경우, _dashData에서 검색 시도
+  if (!g && _dashData && _dashData.gifts) {
+    g = _dashData.gifts.find(x => x.nick === nick);
+  }
+  
+  // 그래도 없으면 API에서 새로 가져오기 시도 (MOCK 환경)
+  if (!g) {
+    const allGifts = await API.fetchGifts();
+    g = allGifts.find(x => x.nick === nick);
+  }
 
-  /* 현재는 모달로 유저 정보 표시 */
-  document.getElementById('modal-title').textContent = `👤 유저 정보 — ${g.nick}`;
-  document.getElementById('modal-body').innerHTML = `
-    <div class="modal-row">
-      <div class="modal-field"><label>닉네임</label><div class="val bold">${g.nick}</div></div>
-      <div class="modal-field"><label>실명</label><div class="val">${g.name}</div></div>
-      <div class="modal-field"><label>전화번호</label><div class="val mono">${g.phone}</div></div>
-      <div class="modal-field"><label>신청일시</label><div class="val">${g.date} ${g.time}</div></div>
-    </div>
-    <div class="modal-field-full"><label>배송 주소</label>
-      <div class="val">${g.addr}<br><span class="text-muted text-sm">${g.detail}</span></div>
-    </div>
-    <hr class="modal-divider">
-    <div class="modal-row">
-      <div class="modal-field"><label>스탬프</label>
-        <div style="margin-top:6px">
-          <div class="stamp-dots">${_stampDots(g.stamps, 10).replace(/class="stamp-dot/g, 'class="stamp-dot big')}</div>
-          <div class="text-muted text-sm" style="margin-top:4px">${g.stamps}/10개</div>
+  // 데모/MOCK 환경: 데이터가 없어도 화면 흐름을 볼 수 있도록 가짜 객체 생성
+  if (!g) {
+    g = { 
+      nick: nick, 
+      name: '홍길동', 
+      phone: '010-0000-0000', 
+      region: '알 수 없음', 
+      addr: '상세 정보 없음', 
+      stamps: 0, 
+      status: '미지급' 
+    };
+  }
+
+  // 1. 후기 데이터 찾기
+  const userReviews = _dashData ? _dashData.reviews.filter(r => r.user === nick || r.user === g.name) : [];
+  
+  // 2. 탭 전환 스크립트 등록 (한 번만)
+  if (!window.switchUserTab) {
+    window.switchUserTab = function(idx) {
+      document.querySelectorAll('.modal-tab').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+      document.querySelectorAll('.modal-tab-content').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+    };
+  }
+
+  const modalEl = document.querySelector('.modal');
+  if (modalEl) modalEl.classList.add('modal-large');
+
+  document.getElementById('modal-title').textContent = `유저 상세 정보`;
+  
+  // 스탬프 내역 생성
+  let stampHtml = '';
+  for(let i=0; i<g.stamps; i++) {
+    const timeStr = `2026-05-0${(i%5)+1} 14:0${i}`;
+    stampHtml += `<div class="receipt-dummy-row"><span>📌 스탬프 획득 장소 ${i+1}</span><span class="text-muted">${timeStr}</span></div>`;
+  }
+  
+  // 후기 내역 생성
+  let reviewHtml = userReviews.length ? '' : '<div style="padding:20px; text-align:center; color:var(--t3);">작성한 후기가 없습니다.</div>';
+  userReviews.forEach(r => {
+    reviewHtml += `
+      <div class="review-card-dummy">
+        <img src="https://picsum.photos/seed/${r.no}/200/150" class="review-dummy-img" alt="dummy" />
+        <div class="review-dummy-body">
+          <div class="review-dummy-place">${r.place}</div>
+          <div class="review-dummy-text">${r.text || '상세 후기 내용입니다. 스탬프 투어 정말 즐거웠어요!'}</div>
+          <div style="margin-top:8px; font-size:11px; color:var(--t3);">${r.date} ${r.time}</div>
         </div>
       </div>
-      <div class="modal-field"><label>현재 상태</label><div style="margin-top:6px">${_statusBadge(g.status)}</div></div>
-      <div class="modal-field"><label>선물 유형</label><div style="margin-top:6px"><span class="badge badge-purple">${g.giftType}</span></div></div>
-      <div class="modal-field"><label>여행후기</label><div style="margin-top:6px">${g.review ? '<span class="badge badge-green">✓ 작성완료</span>' : '<span class="badge badge-gray">미작성</span>'}</div></div>
+    `;
+  });
+
+  // 영수증 이벤트 내역 생성 (더미)
+  const receiptHtml = `
+    <div class="receipt-dummy-row"><span>🧾 영수증 인증 (함평 식당)</span><span class="text-muted">완료 (2026-05-03)</span></div>
+    <div class="receipt-dummy-row"><span>🧾 영수증 인증 (카페)</span><span class="text-muted">완료 (2026-05-04)</span></div>
+  `;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="user-profile-header">
+      <div class="up-avatar">${g.name.substring(0,1)}</div>
+      <div class="up-info">
+        <h3>${g.nick} <span style="font-size:13px; color:var(--t2); font-weight:normal;">(${g.name})</span></h3>
+        <p>전화번호: ${g.phone} | 거주지: ${g.region}</p>
+      </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="UI.closeModal()">닫기</button>
-    </div>`;
+
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchUserTab(0)">기본 정보 & 선물</div>
+      <div class="modal-tab" onclick="switchUserTab(1)">스탬프 인증 내역 (<span style="color:var(--blue)">${g.stamps}</span>)</div>
+      <div class="modal-tab" onclick="switchUserTab(2)">작성한 후기 (<span style="color:var(--blue)">${userReviews.length}</span>)</div>
+      <div class="modal-tab" onclick="switchUserTab(3)">영수증 내역</div>
+    </div>
+
+    <div class="modal-tab-content active">
+      <div class="modal-row">
+        <div class="modal-field"><label>신청일시</label><div class="val">${g.date} ${g.time}</div></div>
+        <div class="modal-field"><label>현재 상태</label><div class="val">${_statusBadge(g.status)}</div></div>
+        <div class="modal-field"><label>선물 유형</label><div class="val"><span class="badge badge-purple">${g.giftType}</span></div></div>
+        <div class="modal-field"><label>여행후기</label><div class="val">${g.review ? '<span class="badge badge-green">✓ 작성완료</span>' : '<span class="badge badge-gray">미작성</span>'}</div></div>
+      </div>
+      <div class="modal-field-full"><label>배송 주소</label>
+        <div class="val">${g.addr}<br><span class="text-muted text-sm">${g.detail}</span></div>
+      </div>
+    </div>
+
+    <div class="modal-tab-content">
+      <div style="border:1px solid var(--b1); border-radius:8px;">${stampHtml || '<div style="padding:16px; text-align:center;">내역 없음</div>'}</div>
+    </div>
+
+    <div class="modal-tab-content">
+      ${reviewHtml}
+    </div>
+
+    <div class="modal-tab-content">
+      <div style="border:1px solid var(--b1); border-radius:8px;">${receiptHtml}</div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:24px; justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="document.querySelector('.modal').classList.remove('modal-large'); UI.closeModal();">닫기</button>
+    </div>
+  `;
   UI.openModal();
 }
 
@@ -466,8 +577,17 @@ const _rPer = 20;
 let _rTab = 'all';
 
 async function buildReviewPage(el) {
-  /* ▼ TODO: API 연동 시 fetchReviews()로 서버에서 직접 수신 */
+  /* ▼ TODO(API): 후기 관리 데이터 연동 
+     - 서버에서 API.fetchReviews()를 호출할 때 필터 조건(월별, 검색어 등)을 Query Parameter로 전달해야 합니다.
+     - (예: GET /api/reviews?month=2026-05)
+     - 실제 서비스에서는 모든 후기를 불러오는 대신 서버에서 페이지네이션된 결과를 받아오도록 수정하세요.
+     - 예상 응답 배열 객체 구조: { no, user, place, date, time, status, content, imageUrl, likes, comments } */
   _reviews = await API.fetchReviews();
+  
+  const selMonth = document.getElementById('month-selector')?.value || 'all';
+  if (selMonth !== 'all') {
+    _reviews = _reviews.filter(r => r.date.startsWith(selMonth));
+  }
   /* ▲ */
 
   const pd = window._dashData?.place_data || [];
@@ -478,10 +598,8 @@ async function buildReviewPage(el) {
   const maxConvPlace = pd.find(p => p.conv === maxConv)?.place || '—';
 
   el.innerHTML = `
-  <div class="kpi-grid mb20">
+  <div class="kpi-grid mb20" style="grid-template-columns: repeat(2,1fr);">
     <div class="kpi-card"><div class="kpi-icon">✍️</div><div class="kpi-val" style="color:var(--purple)">${_reviews.length}</div><div class="kpi-label">총 후기</div></div>
-    <div class="kpi-card"><div class="kpi-icon">👁</div><div class="kpi-val" style="color:var(--green)">${pubCnt}</div><div class="kpi-label">공개 중</div><div class="badge badge-green" style="margin-top:7px">${(pubCnt/_reviews.length*100).toFixed(1)}%</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🚫</div><div class="kpi-val" style="color:var(--t3)">${hidCnt}</div><div class="kpi-label">숨김</div></div>
     <div class="kpi-card"><div class="kpi-icon">🏆</div><div class="kpi-val" style="color:var(--cyan)">${maxConv}%</div><div class="kpi-label">최고 전환율</div><div class="badge badge-blue" style="margin-top:7px">${maxConvPlace}</div></div>
   </div>
   <div class="grid2 mb20">
@@ -515,11 +633,6 @@ async function buildReviewPage(el) {
     </div>
   </div>
   <div class="card">
-    <div class="tab-bar">
-      <div class="tab active" onclick="Pages._switchRevTab(this,'all')">전체 <span class="badge badge-blue" style="margin-left:4px">${_reviews.length}</span></div>
-      <div class="tab" onclick="Pages._switchRevTab(this,'public')">공개 <span class="badge badge-green" style="margin-left:4px">${pubCnt}</span></div>
-      <div class="tab" onclick="Pages._switchRevTab(this,'hidden')">숨김 <span class="badge badge-gray" style="margin-left:4px">${hidCnt}</span></div>
-    </div>
     <div class="filter-bar">
       <div class="search-wrap"><input id="r-q" type="text" placeholder="유저명 검색…" oninput="Pages.filterReviews()"></div>
       <select class="filter-select" id="r-pl" onchange="Pages.filterReviews()">
@@ -575,8 +688,6 @@ function filterReviews() {
   const pl = document.getElementById('r-pl')?.value || '';
   const dt = document.getElementById('r-dt')?.value || '';
   _rFiltered = _reviews.filter(r => {
-    if (_rTab === 'public' && r.status !== '공개') return false;
-    if (_rTab === 'hidden' && r.status !== '숨김') return false;
     if (q  && !r.user.toLowerCase().includes(q)) return false;
     if (pl && r.place !== pl) return false;
     if (dt && r.date  !== dt) return false;
@@ -594,16 +705,29 @@ function _renderReviewList() {
 
   list.innerHTML = slice.map(r => {
     const col = PLACE_COLORS[r.place] || '#3b82f6';
-    return `<div class="review-item ${r.status==='숨김'?'hidden':''}">
-      <span class="rev-no">${r.no}</span>
-      <span class="rev-user">${r.user}</span>
-      <div class="rev-place">
+    const likes = (r.no * 7) % 50;
+    const comments = (r.no * 3) % 20;
+    return `<div class="review-item" style="display:flex; align-items:center; gap:20px; padding:12px 16px;">
+      <div style="width:100px; font-weight:bold; font-size:13px;">${r.user}</div>
+      <div style="width:120px;">
         <span class="place-tag" style="background:${col}18;color:${col};border:1px solid ${col}30">${r.place}</span>
       </div>
-      <span class="rev-date">${r.date.slice(5)}<br><span style="font-size:10px">${r.time}</span></span>
-      <div class="rev-actions">
-        ${_statusBadge(r.status)}
-        <button class="btn ${r.status==='공개'?'btn-danger':'btn-success'} btn-xs" onclick="Pages._toggleReview(${r.no})">${r.status==='공개'?'숨김':'공개'}</button>
+      <div style="width:120px; font-size:12px; color:var(--t3);">
+        ${r.date.slice(5)} ${r.time}
+      </div>
+      <div style="flex:1; display:flex; align-items:center; gap:12px;">
+        <img src="https://picsum.photos/seed/${r.no}/80/60" alt="review image" style="border-radius:6px; object-fit:cover; display:block; width:80px; height:60px;" />
+        <div style="font-size:12.5px; color:var(--t1); line-height:1.4; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+          ${r.no % 3 === 0 ? '이 장소는 너무 멋지네요! 다음에 가족들과 다시 방문하고 싶은 곳입니다. 강력히 추천합니다.' : 
+            r.no % 3 === 1 ? '스탬프 투어 덕분에 평소에 몰랐던 예쁜 곳들을 많이 알게 되었어요. 즐거운 경험이었습니다.' : 
+            '풍경이 정말 아름답고 주변 시설도 깔끔해서 좋았어요. 다른 분들께도 추천하는 장소입니다.'}
+        </div>
+      </div>
+      <div style="width:80px; font-size:12px; color:var(--t2);">
+        ❤️ ${likes}
+      </div>
+      <div style="width:80px; font-size:12px; color:var(--t2);">
+        💬 ${comments}
       </div>
     </div>`;
   }).join('');
@@ -682,34 +806,80 @@ function _showNoticeForm() {
 }
 
 function buildManualPage(el) {
+  // TODO(API): 추후 서버 API를 연동하여 수동 인증 요청 리스트를 불러오도록 구현해야 합니다.
   const pendings = [
-    {user:'닉네임2', place:'장소명2', time:'2025-11-01 21:00', icon:'🏛️'},
-    {user:'닉네임1', place:'장소명1', time:'2025-11-01 08:30', icon:'🌿'},
-    {user:'닉네임00',place:'장소명1', time:'2025-11-01 07:15', icon:'🌸'},
+    { no: 1, user: '닉네임2', place: '나비생태관', time: '2025-11-01 21:00', img: 'https://picsum.photos/100?random=1', status: '미처리' },
+    { no: 2, user: '닉네임1', place: '엑스포공원', time: '2025-11-01 08:30', img: 'https://picsum.photos/100?random=2', status: '미처리' },
+    { no: 3, user: '닉네임00', place: '나비파크', time: '2025-11-01 07:15', img: 'https://picsum.photos/100?random=3', status: '승인 완료' },
   ];
+  
   el.innerHTML = `
   <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
-    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-val" style="color:var(--yellow)">3</div><div class="kpi-label">대기 중</div></div>
+    <div class="kpi-card"><div class="kpi-icon">⏳</div><div class="kpi-val" style="color:var(--yellow)">3</div><div class="kpi-label">미처리</div></div>
     <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-val" style="color:var(--green)">47</div><div class="kpi-label">승인 완료</div></div>
     <div class="kpi-card"><div class="kpi-icon">❌</div><div class="kpi-val" style="color:var(--red)">8</div><div class="kpi-label">거절</div></div>
   </div>
   <div class="card">
-    <div class="card-title">✅ 수동 인증 대기 <span class="badge badge-yellow" style="margin-left:8px">3건</span></div>
-    <div class="card-sub">사진 인증 요청 · 검토 후 승인 또는 거절하세요</div>
-    ${pendings.map(p => `
-    <div class="auth-card">
-      <div class="auth-img">${p.icon}</div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:700">${p.user}</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:3px">📍 ${p.place}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:3px">🕐 ${p.time}</div>
-        <div style="display:flex;gap:7px;margin-top:10px">
-          <button class="btn btn-success btn-sm" onclick="UI.toast('인증 처리됐습니다')">✅ 인증</button>
-          <button class="btn btn-danger btn-sm"  onclick="UI.toast('거절 처리됐습니다')">❌ 거절</button>
-        </div>
+    <div class="card-title">✅ 수동 인증 요청 <span class="badge badge-yellow" style="margin-left:8px">미처리 2건</span></div>
+    <div class="card-sub">
+      사진 인증 요청을 검토 후 승인 또는 거절을 선택해 주세요. 
+      <!-- TODO(API): 추후 서버 API를 연동하여 일괄 저장 및 상태 업데이트 기능을 구현해야 합니다. -->
+    </div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+      <div></div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:4px; font-size:13px; font-weight:600;">
+          <input type="checkbox" id="auth-chk-all" style="accent-color:var(--blue); width:15px; height:15px;" onchange="
+            const isChecked = this.checked;
+            document.querySelectorAll('input[type=radio][value=approve]').forEach(r => r.checked = isChecked);
+          "> 전체 인증 선택
+        </label>
+        <!-- TODO(API): 저장 버튼 클릭 시 라디오 버튼들의 상태를 수집하여 서버로 일괄 전송(POST/PATCH) 해야 합니다. -->
+        <button class="btn btn-primary" style="height:32px; padding:0 16px; font-size:13px; font-weight:bold;" onclick="Pages.saveManualAuth()">💾 저장</button>
       </div>
-      <span class="badge badge-yellow">대기중</span>
-    </div>`).join('')}
+    </div>
+
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>신청일</th>
+            <th>신청자</th>
+            <th>장소</th>
+            <th class="center">이미지(인증요청)</th>
+            <th class="center">인증 처리</th>
+            <th class="center" style="width:100px;">상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pendings.map(p => `
+          <tr>
+            <td class="text-muted text-sm">${p.time}</td>
+            <td style="font-weight:600; color:var(--blue)">${p.user}</td>
+            <td>📍 ${p.place}</td>
+            <td class="center">
+              <img src="${p.img}" alt="인증이미지" style="width:60px; height:60px; object-fit:cover; border-radius:6px; cursor:pointer; border:1px solid var(--border);" onclick="window.open('${p.img}')" title="크게 보기">
+            </td>
+            <td class="center">
+              <div style="display:inline-flex; gap:12px; align-items:center;">
+                <!-- TODO(API): 라디오 버튼 선택 시 서버(PATCH /api/auth/:no)에 인증 상태(승인/거절)를 전송해야 합니다. -->
+                <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+                  <input type="radio" name="auth-${p.no}" value="approve" style="accent-color:var(--green); width:14px; height:14px;" onchange="UI.toast('승인 처리되었습니다')"> 인증
+                </label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+                  <input type="radio" name="auth-${p.no}" value="reject" style="accent-color:var(--red); width:14px; height:14px;" onchange="UI.toast('거절 처리되었습니다')"> 거절
+                </label>
+              </div>
+            </td>
+            <td class="center">
+              ${p.status === '미처리' ? '<span class="badge badge-yellow">미처리</span>' : '<span class="badge badge-green">승인 완료</span>'}
+            </td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
 
@@ -794,30 +964,56 @@ async function buildFraudPage(el) {
   const fraudUsers = await API.fetchFraudUsers();
   /* ▲ */
   const totalCases = fraudUsers.reduce((s, f) => s + f.cnt, 0);
+  
+  // 전체 유저 대비 발생 비율 계산
+  const totalUsers = window._dashData?.summary?.total_users || 15000; // 대시보드 데이터 연동, 없을 시 기본값 15,000명
+  const fraudRate = ((fraudUsers.length / totalUsers) * 100).toFixed(2);
+  
   el.innerHTML = `
-  <div class="alert-bar"><span class="alert-dot"></span><strong>총 ${fraudUsers.length}명</strong>에서 동일 장소 중복 인증 패턴 감지</div>
-  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px">
     <div class="kpi-card"><div class="kpi-icon">⚠️</div><div class="kpi-val" style="color:var(--red)">${fraudUsers.length}</div><div class="kpi-label">의심 유저</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🔁</div><div class="kpi-val" style="color:var(--orange)">${totalCases}</div><div class="kpi-label">중복 케이스</div></div>
-    <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-val" style="color:var(--t3)">0</div><div class="kpi-label">처리 완료</div></div>
+    <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-val" style="color:var(--orange)">${fraudRate}%</div><div class="kpi-label">전체 유저 대비 발생 비율</div><div style="font-size:11px;color:var(--t3);margin-top:4px;">기준: 총 참여 유저 ${totalUsers.toLocaleString()}명</div></div>
   </div>
   <div class="card">
-    <div class="card-title">⚠️ 부정사용 의심 유저 목록</div>
-    <div class="card-sub">동일 유저 + 동일 장소 2회 이상 인증 케이스</div>
-    ${fraudUsers.map(f => `
-    <div class="fraud-item">
-      <div class="fraud-header">
-        <span style="font-size:17px">⚠️</span>
-        <span style="font-size:13.5px;font-weight:800">${f.user}</span>
-        <span class="badge badge-red">${f.cnt}개 장소 중복</span>
-        <div style="margin-left:auto;display:flex;gap:7px">
-          <button class="btn btn-danger btn-xs" onclick="UI.toast('인증 취소 처리됐습니다')">인증 취소</button>
-          <button class="btn btn-outline btn-xs" onclick="UI.toast('정상 처리됐습니다')">정상처리</button>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--t3);margin-bottom:5px">중복 인증 장소:</div>
-      <div>${f.places.map(p => `<span class="fraud-tag">📍 ${p}</span>`).join('')}</div>
-    </div>`).join('')}
+    <div class="card-title">⚠️ 부정사용 관리</div>
+    <div class="card-sub" style="color:var(--red); font-weight:600; font-size:13px; margin-bottom:16px;">
+      "부정사용 의심자란 gps 조작 프로그램을 설치하고, 해당 장소를 방문하지 않고 인증한 것으로 의심되는 유저입니다."
+    </div>
+    
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px;" class="center">번호</th>
+            <th>닉네임</th>
+            <th class="center">인증 개수</th>
+            <th class="center">후기 작성 개수</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${fraudUsers.map((f, idx) => {
+            const reviewCnt = f.reviewCnt ?? Math.floor(Math.random() * 5); // 후기 개수 MOCK
+            return `
+            <tr>
+              <td class="center text-muted">${idx + 1}</td>
+              <td>
+                <span style="color:var(--blue); font-weight:700; text-decoration:underline; cursor:pointer;" 
+                      onclick="Pages.openUserPage('${f.user}')">
+                  ${f.user}
+                </span>
+              </td>
+              <td class="center">
+                <span class="badge badge-red">${f.cnt}건</span>
+              </td>
+              <td class="center">
+                <span class="badge badge-gray">${reviewCnt}건</span>
+              </td>
+            </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
 
@@ -844,6 +1040,45 @@ function _renderPagination(infoId, btnsId, total, page, perPage, onPageClick) {
 }
 
 
+/* ── 수동 인증 저장 ── */
+async function saveManualAuth() {
+  const radios = document.querySelectorAll('input[type="radio"]:checked');
+  const updates = [];
+  radios.forEach(r => {
+    if (r.name.startsWith('auth-')) {
+      const no = parseInt(r.name.split('-')[1], 10);
+      updates.push({ no, action: r.value });
+    }
+  });
+
+  if (updates.length === 0) {
+    UI.toast('선택된 인증 처리 항목이 없습니다.', true);
+    return;
+  }
+
+  // TODO(API): 실제 서버 연동 시에는 아래 정보를 POST/PATCH 로 전송
+  console.log('[MOCK API] 수동 인증 일괄 처리 서버 전송:', updates);
+  
+  UI.toast(`${updates.length}건의 인증 처리가 서버로 성공적으로 전송되었습니다.`);
+  
+  // 성공 처리 시뮬레이션 (화면 업데이트)
+  radios.forEach(r => {
+    r.checked = false; // 라디오버튼 초기화
+    const row = r.closest('tr');
+    if (row) {
+      const statusBadge = row.querySelector('td:last-child');
+      if (statusBadge) {
+        statusBadge.innerHTML = r.value === 'approve' 
+          ? '<span class="badge badge-green">승인 완료</span>' 
+          : '<span class="badge badge-red">거절됨</span>';
+      }
+    }
+  });
+  
+  const chkAll = document.getElementById('auth-chk-all');
+  if (chkAll) chkAll.checked = false;
+}
+
 /* ── 외부 노출 ── */
 const Pages = {
   buildDashboard,
@@ -854,5 +1089,5 @@ const Pages = {
   _updateGiftStatus,
   buildReviewPage, filterReviews, _switchRevTab, _toggleReview,
   buildNoticePage, _showNoticeForm,
-  buildManualPage, buildReceiptPage, buildStorePage, buildReportPage, buildFraudPage,
+  buildManualPage, saveManualAuth, buildReceiptPage, buildStorePage, buildReportPage, buildFraudPage,
 };

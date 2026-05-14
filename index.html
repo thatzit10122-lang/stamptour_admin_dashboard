@@ -11,6 +11,9 @@
   <!-- Plotly.js -->
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
+  <!-- html2pdf.js (보고서 내보내기용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <!-- 스타일시트 -->
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -20,11 +23,24 @@
        사이드바
   ════════════════════════════════════════════ -->
   <aside class="sidebar" id="sidebar">
-    <div class="logo">
-      <div class="logo-icon">🗺️</div>
-      <div>
-        <div class="logo-title">스탬프투어</div>
-        <div class="logo-sub">ADMIN · 함평나비대축제 2026</div>
+    <div class="logo" style="display:flex; flex-direction:column; gap:12px; align-items:flex-start;">
+      <div style="display:flex; align-items:center; gap:12px; width:100%; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="logo-icon">🗺️</div>
+          <div>
+            <div class="logo-title" style="font-size:18px;">스탬프투어</div>
+            <div class="logo-sub">ADMIN · 함평나비대축제 2026</div>
+          </div>
+        </div>
+      </div>
+      <!-- 테마 토글 라디오 버튼 -->
+      <div class="theme-toggle" style="display:flex; gap:12px; font-size:12px; font-weight:600; color:var(--t2); background:var(--bg1); padding:6px 12px; border-radius:20px; border:1px solid var(--border); width:100%; justify-content:center;">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+          <input type="radio" name="theme-mode" value="dark" checked onchange="toggleTheme('dark')" style="accent-color:var(--blue);"> 다크모드
+        </label>
+        <label style="cursor:pointer; display:flex; align-items:center; gap:4px;">
+          <input type="radio" name="theme-mode" value="light" onchange="toggleTheme('light')" style="accent-color:var(--blue);"> 화이트모드
+        </label>
       </div>
     </div>
 
@@ -42,11 +58,11 @@
           <span class="nav-ic">📢</span> 공지사항
         </div>
         <div class="nav-item" data-page="gift">
-          <span class="nav-ic">🎁</span> 선물 신청자 관리
+          <span class="nav-ic">🎁</span> 선물 신청자
           <span class="nav-badge pending" id="badge-gift">—</span>
         </div>
         <div class="nav-item" data-page="review">
-          <span class="nav-ic">✍️</span> 후기 관리
+          <span class="nav-ic">✍️</span> 후기
         </div>
         <div class="nav-item" data-page="manual">
           <span class="nav-ic">✅</span> 수동 인증 요청
@@ -73,10 +89,12 @@
     </nav>
 
     <div class="sidebar-user">
-      <div class="user-avatar">관</div>
+      <!-- TODO(API): 사이드바 유저 정보 연동
+           로그인한 관리자의 이름, 역할(Role), 아바타 이니셜 등을 서버 세션/DB에서 조회하여 렌더링해야 합니다. -->
+      <div class="user-avatar" id="sidebar-avatar">관</div>
       <div>
-        <div class="user-name">함평군청 담당자</div>
-        <div class="user-role">관리자</div>
+        <div class="user-name" id="sidebar-name">함평군청 담당자</div>
+        <div class="user-role" id="sidebar-role">관리자</div>
       </div>
     </div>
   </aside>
@@ -88,11 +106,24 @@
 
     <!-- 탑바 -->
     <header class="topbar">
-      <div class="topbar-left">
-        <div class="topbar-title" id="topbar-title">대시보드</div>
-        <div class="topbar-sub">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
+      <div class="topbar-left" style="display: flex; align-items: center; gap: 16px; flex: 1;">
+        <div>
+          <div class="topbar-title" id="topbar-title">대시보드</div>
+          <!-- TODO(API): 상단 행사명 및 기간 연동
+               DB의 Event 테이블에서 행사명(name), 시작일(startDate), 종료일(endDate)을 조회하여 아래 텍스트를 동적으로 교체해야 합니다. -->
+          <div class="topbar-sub" id="topbar-event-info">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
+        </div>
+        <!-- TODO(API): 월별 필터 옵션 연동
+             서버에서 해당 행사의 실제 진행 기간(월 단위)을 추출하여 <option> 태그를 동적 생성해야 합니다. -->
+        <select id="month-selector" class="filter-select" style="font-weight:bold; height:36px; border-radius:6px; border:1px solid var(--border); padding:0 12px; font-size:13px; color:var(--t1);" onchange="onMonthChange()">
+          <option value="all">전체 기간</option>
+          <option value="2026-04">2026년 4월</option>
+          <option value="2026-05" selected>2026년 5월</option>
+        </select>
       </div>
-      <div class="topbar-right" id="topbar-actions"></div>
+      <div class="topbar-right" id="topbar-actions">
+        <button class="btn btn-primary" style="font-weight:bold; height:36px; padding:0 16px; font-size:13px;" onclick="exportDashboardPDF()">📄 보고서로 내보내기 (PDF)</button>
+      </div>
     </header>
 
     <!-- 페이지 컨테이너 -->
@@ -124,12 +155,8 @@
         <div class="card mb">
           <div class="card-header">
             <div>
-              <div class="card-title">📈 일별 스탬프 인증 추이</div>
-              <div class="card-sub">전체 기간 일별 스탬프 인증 건수</div>
-            </div>
-            <div class="toggle-row">
-              <button class="toggle-btn on" id="btn-daily" onclick="Charts.toggleStamp('daily')">일별</button>
-              <button class="toggle-btn" id="btn-cumul" onclick="Charts.toggleStamp('cumul')">누적</button>
+              <div class="card-title" id="chart-stamp-title">📈 일별 스탬프 인증 추이</div>
+              <div class="card-sub" id="chart-stamp-sub">전체 기간 일별 스탬프 인증 건수</div>
             </div>
           </div>
           <div id="chart-daily" class="chart h240"></div>
