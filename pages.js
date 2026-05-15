@@ -1175,8 +1175,63 @@ function openDrawModal() {
   const modalEl = document.querySelector('.modal');
   if (modalEl) modalEl.classList.remove('modal-large');
 
+  const allCourses = [...new Set(_gifts.map(g => g.course).filter(Boolean))];
+  const hasCourse = allCourses.length > 0;
+  const maxCourses = allCourses.length;
+
+  let courseCountOptions = '';
+  if (hasCourse) {
+    courseCountOptions += `<option value="${maxCourses}">전체 코스 (${maxCourses}개)</option>`;
+    for (let i = maxCourses - 1; i >= 1; i--) {
+      courseCountOptions += `<option value="${i}">${i}개 코스 완성</option>`;
+    }
+  }
+
+  const condHtml = hasCourse ? `
+    <div style="margin-bottom: 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label style="font-weight:600;">2. 등급 조건</label>
+        <div style="display:flex; gap:12px; font-size:13px;">
+          <label><input type="radio" name="draw-condition-type" value="grade" checked onchange="Pages._toggleDrawCondition()"> 코스별</label>
+          <label><input type="radio" name="draw-condition-type" value="count" onchange="Pages._toggleDrawCondition()"> 완성한 코스 개수로 당첨자 찾기</label>
+        </div>
+      </div>
+      <div id="draw-cond-grade" style="display:flex; gap:8px;">
+        <select id="draw-course" class="filter-select" style="flex:1;" onchange="Pages._onDrawCourseChange()">
+          <option value="">전체 코스</option>
+          <option value="1코스">1코스</option>
+          <option value="2코스">2코스</option>
+          <option value="3코스">3코스</option>
+        </select>
+        <select id="draw-grade" class="filter-select" style="flex:1;">
+          <option value="">모든 등급</option>
+          <option value="1코스_5">1코스_5</option>
+          <option value="1코스_10">1코스_10</option>
+          <option value="2코스_5">2코스_5</option>
+          <option value="2코스_9">2코스_9</option>
+          <option value="3코스_13">3코스_13</option>
+        </select>
+      </div>
+      <div id="draw-cond-count" style="display:none;">
+        <select id="draw-course-count" class="filter-select" style="width:100%;">
+          ${courseCountOptions}
+        </select>
+      </div>
+    </div>
+  ` : `
+    <div style="margin-bottom: 16px;">
+      <label style="font-weight:600; display:block; margin-bottom:8px;">2. 등급 조건</label>
+      <div style="display:flex; gap:8px;">
+        <select id="draw-grade" class="filter-select" style="flex:1;">
+          <option value="">모든 등급</option>
+          <option value="함평 5">함평 5</option>
+          <option value="함평 10">함평 10</option>
+        </select>
+      </div>
+    </div>
+  `;
+
   document.getElementById('modal-title').textContent = '🎉 당첨자 추첨하기';
-  
   document.getElementById('modal-body').innerHTML = `
     <div style="margin-bottom: 16px;">
       <label style="font-weight:600; display:block; margin-bottom:8px;">1. 기간 설정</label>
@@ -1197,25 +1252,7 @@ function openDrawModal() {
       </div>
     </div>
 
-    <div style="margin-bottom: 16px;">
-      <label style="font-weight:600; display:block; margin-bottom:8px;">2. 등급 조건</label>
-      <div style="display:flex; gap:8px;">
-        <select id="draw-course" class="filter-select" style="flex:1;" onchange="Pages._onDrawCourseChange()">
-          <option value="">전체 코스</option>
-          <option value="1코스">1코스</option>
-          <option value="2코스">2코스</option>
-          <option value="3코스">3코스</option>
-        </select>
-        <select id="draw-grade" class="filter-select" style="flex:1;">
-          <option value="">모든 등급</option>
-          <option value="1코스_5">1코스_5</option>
-          <option value="1코스_10">1코스_10</option>
-          <option value="2코스_5">2코스_5</option>
-          <option value="2코스_9">2코스_9</option>
-          <option value="3코스_13">3코스_13</option>
-        </select>
-      </div>
-    </div>
+    ${condHtml}
 
     <div style="margin-bottom: 24px;">
       <label style="font-weight:600; display:block; margin-bottom:8px;">3. 추첨 인원</label>
@@ -1228,6 +1265,14 @@ function openDrawModal() {
     </div>
   `;
   UI.openModal();
+}
+
+function _toggleDrawCondition() {
+  const type = document.querySelector('input[name="draw-condition-type"]:checked').value;
+  const gradeEl = document.getElementById('draw-cond-grade');
+  const countEl = document.getElementById('draw-cond-count');
+  if (gradeEl) gradeEl.style.display = type === 'grade' ? 'flex' : 'none';
+  if (countEl) countEl.style.display = type === 'count' ? 'block' : 'none';
 }
 
 function _toggleDrawPeriod() {
@@ -1255,9 +1300,10 @@ function _onDrawCourseChange() {
 
 function executeDraw() {
   const type = document.querySelector('input[name="draw-period-type"]:checked').value;
-  const course = document.getElementById('draw-course').value;
-  const grade = document.getElementById('draw-grade').value;
   const count = parseInt(document.getElementById('draw-count').value, 10);
+  
+  const condTypeEl = document.querySelector('input[name="draw-condition-type"]:checked');
+  const condType = condTypeEl ? condTypeEl.value : 'grade';
 
   let pool = _gifts.filter(g => g.status !== '지급완료');
 
@@ -1271,8 +1317,40 @@ function executeDraw() {
     if (ed) pool = pool.filter(g => g.date <= ed);
   }
 
-  if (course) pool = pool.filter(g => g.course === course);
-  if (grade) pool = pool.filter(g => g.grade === grade);
+  if (condType === 'grade') {
+    const courseEl = document.getElementById('draw-course');
+    const gradeEl = document.getElementById('draw-grade');
+    const course = courseEl ? courseEl.value : '';
+    const grade = gradeEl ? gradeEl.value : '';
+
+    if (course) pool = pool.filter(g => g.course === course);
+    if (grade) pool = pool.filter(g => g.grade === grade);
+
+  } else if (condType === 'count') {
+    const targetCount = parseInt(document.getElementById('draw-course-count').value, 10);
+    
+    // 유저(전화번호 기준)별 완성 코스 개수 계산
+    const userMap = {};
+    for (const g of pool) {
+      if (!userMap[g.phone]) {
+        userMap[g.phone] = { courses: new Set(), latestGift: g };
+      }
+      if (g.course) userMap[g.phone].courses.add(g.course);
+      if (g.no > userMap[g.phone].latestGift.no) {
+        userMap[g.phone].latestGift = g;
+      }
+    }
+
+    pool = [];
+    for (const phone in userMap) {
+      if (userMap[phone].courses.size === targetCount) {
+        const gift = { ...userMap[phone].latestGift };
+        gift.course = `${targetCount}개 코스 완성`;
+        gift.grade = '-';
+        pool.push(gift);
+      }
+    }
+  }
 
   if (pool.length === 0) {
     UI.toast('조건에 맞는 대상자가 없습니다.', true);
@@ -1445,7 +1523,7 @@ async function saveManualAuth() {
 const Pages = {
   buildDashboard,
   buildGiftPage, filterGifts, sortGifts, onCourseChange,
-  openDrawModal, _toggleDrawPeriod, _onDrawCourseChange, executeDraw, exportDrawResultCSV, _toggleDrawAll, saveDrawWinnersPaid,
+  openDrawModal, _toggleDrawPeriod, _onDrawCourseChange, executeDraw, exportDrawResultCSV, _toggleDrawAll, saveDrawWinnersPaid, _toggleDrawCondition,
   openGiftDetail, openUserPage, exportGiftCSV,
   openBulkModal, _applyBulk,
   _onPaidChange, _toggleAllPaid, _syncSelectAll,
