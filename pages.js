@@ -144,12 +144,24 @@ async function buildGiftPage(el) {
     _gifts = _gifts.filter(g => g.date.startsWith(selMonth));
   }
 
-  // 동적으로 등급과 초기 상태값 처리 (대기중/처리중 -> 미지급)
-  _gifts = _gifts.map(g => ({
-    ...g,
-    grade: g.no % 2 === 0 ? '함평 10' : '함평 5',
-    status: g.status === '지급완료' ? '지급완료' : '미지급'
-  }));
+  // 동적으로 코스와 등급 초기값 처리 (대기중/처리중 -> 미지급)
+  _gifts = _gifts.map(g => {
+    let course = '1코스';
+    let grade = '1코스_5';
+    const r = g.no % 5;
+    if (r === 0) { course = '1코스'; grade = '1코스_10'; }
+    else if (r === 1) { course = '1코스'; grade = '1코스_5'; }
+    else if (r === 2) { course = '2코스'; grade = '2코스_9'; }
+    else if (r === 3) { course = '2코스'; grade = '2코스_5'; }
+    else { course = '3코스'; grade = '3코스_13'; }
+
+    return {
+      ...g,
+      course,
+      grade,
+      status: g.status === '지급완료' ? '지급완료' : '미지급'
+    };
+  });
   /* ▲ */
 
   const done  = _gifts.filter(g => g.status === '지급완료').length;
@@ -170,7 +182,10 @@ async function buildGiftPage(el) {
     <div class="card"><div class="card-title">📊 처리 상태 현황</div><div class="card-sub">지급 진행 현황</div><div id="g-donut" class="chart h220"></div></div>
   </div>
   <div class="card">
-    <div class="card-title">📋 선물 신청자 목록</div>
+    <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <span>📋 선물 신청자 목록</span>
+      <button class="btn btn-primary btn-sm" onclick="Pages.openDrawModal()">🎉 당첨자 추첨하기</button>
+    </div>
     <div class="card-sub" style="display:flex; justify-content:space-between; align-items:center;">
       <div>총 ${total}명 · 닉네임 클릭 시 유저 정보 페이지로 이동 · 선물지급 체크박스로 즉시 처리</div>
       <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; font-weight:600; color:var(--red);">
@@ -179,11 +194,30 @@ async function buildGiftPage(el) {
     </div>
     <div class="filter-bar">
       <div class="search-wrap"><input id="g-q" type="text" placeholder="닉네임·실명 검색…" oninput="Pages.filterGifts()"></div>
-      <!-- TODO(API): 서버 API 연동 시 아래 선택된 등급(grade) 값을 파라미터로 전송해야 합니다. -->
+      <!-- 
+        TODO(API): 코스 유무에 따른 동적 UI 처리 가이드
+        1. 서버에서 이벤트(스탬프투어) 기본 정보를 받아올 때 '코스 사용 여부(hasCourse)'를 확인합니다.
+        2. 코스가 없는 경우: 
+           - 아래 'g-course' <select> 필터를 렌더링하지 않거나 'display: none' 처리합니다.
+           - 데이터 테이블의 '코스' 컬럼(<th>, <td>)을 숨김 처리합니다.
+           - 등급 필터('g-grade')에는 해당 투어의 전체 등급만 나열합니다.
+        3. 코스가 있는 경우:
+           - 'g-course' 필터를 표시하고, 서버에서 전달받은 실제 코스 목록으로 <option>을 렌더링합니다.
+           - 사용자가 코스를 선택하면(onCourseChange), 선택된 코스에 속한 하위 등급들만 'g-grade' 옵션에 나타나도록 업데이트합니다.
+      -->
+      <select class="filter-select" id="g-course" onchange="Pages.onCourseChange()">
+        <option value="">전체 코스</option>
+        <option value="1코스">1코스</option>
+        <option value="2코스">2코스</option>
+        <option value="3코스">3코스</option>
+      </select>
       <select class="filter-select" id="g-grade" onchange="Pages.filterGifts()">
         <option value="">모든 등급</option>
-        <option value="함평 5">함평 5</option>
-        <option value="함평 10">함평 10</option>
+        <option value="1코스_5">1코스_5</option>
+        <option value="1코스_10">1코스_10</option>
+        <option value="2코스_5">2코스_5</option>
+        <option value="2코스_9">2코스_9</option>
+        <option value="3코스_13">3코스_13</option>
       </select>
       <select class="filter-select" id="g-st" onchange="Pages.filterGifts()">
         <option value="">전체 상태</option>
@@ -208,6 +242,7 @@ async function buildGiftPage(el) {
             <th class="sortable" onclick="Pages.sortGifts('no')">번호 ↕</th>
             <th class="sortable" onclick="Pages.sortGifts('date')">선물 신청일 ↕</th>
             <th class="sortable" onclick="Pages.sortGifts('nick')">닉네임 ↕</th>
+            <th class="sortable" onclick="Pages.sortGifts('course')">코스 ↕</th>
             <th class="sortable" onclick="Pages.sortGifts('grade')">등급 ↕</th>
             <th>실명</th>
             <th>전화번호</th>
@@ -241,6 +276,7 @@ async function buildGiftPage(el) {
 
 function filterGifts() {
   const q  = document.getElementById('g-q')?.value.toLowerCase() || '';
+  const course = document.getElementById('g-course')?.value || '';
   const grade = document.getElementById('g-grade')?.value || '';
   const st = document.getElementById('g-st')?.value || '';
   const rg = document.getElementById('g-rg')?.value || '';
@@ -249,6 +285,7 @@ function filterGifts() {
 
   _gFiltered = _gifts.filter(g => {
     if (q  && !g.nick.toLowerCase().includes(q) && !g.name.includes(q)) return false;
+    if (course && g.course !== course) return false;
     if (grade && g.grade !== grade) return false;
     if (st && g.status !== st) return false;
     if (rg && g.region !== rg) return false;
@@ -259,6 +296,30 @@ function filterGifts() {
   });
   _gPage = 1;
   _renderGiftTable();
+}
+
+function onCourseChange() {
+  const course = document.getElementById('g-course')?.value || '';
+  const gradeSelect = document.getElementById('g-grade');
+  if (!gradeSelect) return;
+  
+  let options = '<option value="">모든 등급</option>';
+  
+  if (course === '1코스') {
+    options += '<option value="1코스_5">1코스_5</option><option value="1코스_10">1코스_10</option>';
+  } else if (course === '2코스') {
+    options += '<option value="2코스_5">2코스_5</option><option value="2코스_9">2코스_9</option>';
+  } else if (course === '3코스') {
+    options += '<option value="3코스_13">3코스_13</option>';
+  } else {
+    // 전체 코스일 때는 전체 등급 표시
+    options += '<option value="1코스_5">1코스_5</option><option value="1코스_10">1코스_10</option>';
+    options += '<option value="2코스_5">2코스_5</option><option value="2코스_9">2코스_9</option>';
+    options += '<option value="3코스_13">3코스_13</option>';
+  }
+  
+  gradeSelect.innerHTML = options;
+  filterGifts();
 }
 
 function sortGifts(key) {
@@ -300,7 +361,8 @@ function _renderGiftTable() {
           ${g.nick}${fraudTag}
         </span>
       </td>
-      <td style="font-weight:600; color:var(--blue)">${g.grade}</td>
+      <td style="font-weight:600; color:var(--blue)">${g.course}</td>
+      <td style="font-weight:600; color:var(--purple)">${g.grade}</td>
       <td>${g.name}</td>
       <td class="mono text-muted">${g.phone}</td>
       <td style="font-size:12px">${g.addr}</td>
@@ -753,13 +815,18 @@ async function _toggleReview(no) {
    나머지 페이지들
 ════════════════════════════════════════════════ */
 function buildNoticePage(el) {
+  // TODO(API): 향후 유저 로그인 시, 서버 세션에서 현재 로그인한 유저 아이디/이름을 가져와야 합니다.
+  const currentUser = document.getElementById('sidebar-name')?.textContent || '함평군청 담당자';
+
   const notices = [
-    {pin:true, type:'📢', title:'[필독] 함평나비대축제 스탬프투어 운영 안내', date:'2026-04-23', views:1240, status:'게시중'},
-    {pin:false,type:'🎉', title:'스탬프 10개 완성 시 특별 경품 추첨 이벤트', date:'2026-04-24', views:890,  status:'게시중'},
-    {pin:false,type:'🔧', title:'앱 v2.1.3 업데이트 — 스탬프톡 기능 개선',  date:'2026-04-26', views:432,  status:'게시중'},
-    {pin:false,type:'📢', title:'선물 신청 마감 안내 (5월 10일까지)',         date:'2026-05-04', views:678,  status:'게시중'},
-    {pin:false,type:'⚠️', title:'일부 장소 QR코드 교체 작업 (수생식물관)',   date:'2026-04-28', views:215,  status:'종료'},
+    {pin:true, type:'🚨 필독', title:'함평나비대축제 스탬프투어 운영 안내', date:'2026-04-23', views:1240, status:'게시중', author:'시스템', content:'함평나비대축제 스탬프투어의 전반적인 운영 안내입니다.<br><br>1. 운영 시간: 10:00 ~ 18:00<br>2. 이벤트 장소: 함평엑스포공원 일대<br>3. 참여 방법: 각 지정된 장소에서 QR 코드를 스캔하세요.<br><br>안전하고 즐거운 축제가 되시길 바랍니다.'},
+    {pin:false,type:'🎉 이벤트', title:'스탬프 10개 완성 시 특별 경품 추첨 이벤트', date:'2026-04-24', views:890,  status:'게시중', author:'함평군청 담당자', content:'스탬프 10개를 모두 완성하신 분들을 대상으로 특별 경품 추첨을 진행합니다!<br><br>- 경품: 함평사랑상품권 5만원권 (100명)<br>- 추첨일: 2026년 5월 15일<br>- 당첨자 발표: 본 앱 공지사항 및 개별 안내<br><br>아래 첨부된 이미지를 참고해주세요! 많은 참여 부탁드립니다.', images: ['https://picsum.photos/400/200?random=1', 'https://picsum.photos/400/200?random=2', 'https://picsum.photos/400/200?random=3']},
+    {pin:false,type:'🔧 업데이트', title:'앱 v2.1.3 업데이트 — 스탬프톡 기능 개선',  date:'2026-04-26', views:432,  status:'게시중', author:'개발팀', content:'앱 버전 2.1.3 업데이트가 배포되었습니다.<br><br>- 스탬프톡 로딩 속도 최적화<br>- 이미지 업로드 관련 버그 수정<br>- 기타 UI 개선<br><br>앱스토어/플레이스토어에서 최신 버전으로 업데이트 해주시길 바랍니다.'},
+    {pin:false,type:'📢 일반', title:'선물 신청 마감 안내 (5월 10일까지)',         date:'2026-05-04', views:678,  status:'게시중', author:'함평군청 담당자', content:'스탬프투어 선물 신청이 곧 마감됩니다.<br><br>- 신청 마감 기한: 2026년 5월 10일 23:59 까지<br><br>아직 선물을 신청하지 않으신 분들은 기한 내에 꼭 신청을 완료해주시기 바랍니다.'},
+    {pin:false,type:'🛠️ 점검', title:'일부 장소 QR코드 교체 작업 (수생식물관)',   date:'2026-04-28', views:215,  status:'종료', author:'현장요원', content:'수생식물관 앞의 QR코드 훼손으로 인해 새로운 QR코드로 교체 작업이 진행되었습니다.<br><br>- 작업 일시: 2026년 4월 28일 오전 9시<br><br>현재 정상적으로 인증이 가능합니다.'},
   ];
+  Pages._notices = notices;
+
   el.innerHTML = `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700">📢 공지사항</div>
@@ -768,32 +835,40 @@ function buildNoticePage(el) {
   <div class="card">
     <div class="filter-bar">
       <div class="search-wrap"><input type="text" placeholder="공지 제목 검색…"></div>
-      <select class="filter-select"><option>전체</option><option>공지</option><option>이벤트</option></select>
+      <select class="filter-select"><option>전체</option><option>일반</option><option>필독</option><option>점검</option><option>이벤트</option><option>업데이트</option></select>
     </div>
-    ${notices.map(n => `
+    ${notices.map((n, idx) => `
     <div class="notice-item">
       <div class="notice-pin">${n.pin ? '📌' : '📄'}</div>
-      <div class="notice-body">
+      <div class="notice-body" style="cursor:pointer;" onclick="Pages._showNoticeDetail(${idx})">
         <div class="notice-title">${n.type} ${n.title}</div>
         <div class="notice-meta">
-          <span>${n.date}</span> · <span>조회 ${n.views.toLocaleString()}회</span> ·
+          <span>${n.date}</span> · <span>작성자: ${n.author}</span> · <span>조회 ${n.views.toLocaleString()}회</span> ·
           <span class="badge ${n.status==='게시중'?'badge-green':'badge-gray'}">${n.status}</span>
         </div>
       </div>
       <div class="notice-actions">
-        <button class="btn btn-outline btn-sm">수정</button>
-        <button class="btn btn-danger btn-sm">삭제</button>
+        ${n.author === currentUser ? `
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation()">수정</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation()">삭제</button>
+        ` : ''}
       </div>
     </div>`).join('')}
   </div>`;
 }
 
 function _showNoticeForm() {
+  window._noticeImageUrls = []; // 모달 열 때 초기화
   document.getElementById('modal-title').textContent = '✏️ 새 공지 작성';
   document.getElementById('modal-body').innerHTML = `
-    <div class="form-group"><label class="form-label">유형</label><select class="form-input"><option>📢 일반</option><option>🎉 이벤트</option><option>🔧 업데이트</option><option>⚠️ 긴급</option></select></div>
+    <div class="form-group"><label class="form-label">유형</label><select class="form-input"><option>📢 일반</option><option>🚨 필독</option><option>🛠️ 점검</option><option>🎉 이벤트</option><option>🔧 업데이트</option></select></div>
     <div class="form-group"><label class="form-label">제목</label><input class="form-input" type="text" placeholder="공지 제목"></div>
     <div class="form-group"><label class="form-label">내용</label><textarea class="form-textarea" placeholder="공지 내용…"></textarea></div>
+    <div class="form-group">
+      <label class="form-label">첨부 이미지 (최대 3개)</label>
+      <input type="file" class="form-input" accept="image/*" multiple onchange="Pages._handleNoticeImageUpload(this)">
+      <div id="notice-img-preview" style="display:flex; flex-direction:column; gap:8px; margin-top:12px;"></div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">시작일</label><input class="form-input" type="date" value="2026-05-12"></div>
       <div class="form-group"><label class="form-label">종료일</label><input class="form-input" type="date" value="2026-05-31"></div>
@@ -802,6 +877,79 @@ function _showNoticeForm() {
       <button class="btn btn-primary" onclick="UI.toast('공지가 게시됐습니다');UI.closeModal()">게시하기</button>
       <button class="btn btn-outline" onclick="UI.closeModal()">취소</button>
     </div>`;
+  UI.openModal();
+}
+
+function _handleNoticeImageUpload(input) {
+  const preview = document.getElementById('notice-img-preview');
+  if (!preview) return;
+
+  const files = Array.from(input.files);
+  if (window._noticeImageUrls.length + files.length > 3) {
+    UI.toast('이미지는 최대 3개까지만 첨부할 수 있습니다.', true);
+    input.value = ''; 
+    return;
+  }
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      window._noticeImageUrls.push(e.target.result);
+      Pages._renderNoticeImages();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function _renderNoticeImages() {
+  const preview = document.getElementById('notice-img-preview');
+  if (!preview) return;
+  preview.innerHTML = '';
+  window._noticeImageUrls.forEach((url, idx) => {
+    preview.innerHTML += `
+      <div style="position:relative;">
+        <img src="${url}" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; border:1px solid var(--border); background:var(--bg2);">
+        <button class="btn btn-danger btn-sm" style="position:absolute; top:8px; right:8px; padding:4px 8px; border-radius:4px;" onclick="Pages._removeNoticeImage(${idx})">✕</button>
+      </div>
+    `;
+  });
+}
+
+function _removeNoticeImage(idx) {
+  window._noticeImageUrls.splice(idx, 1);
+  Pages._renderNoticeImages();
+}
+
+function _showNoticeDetail(idx) {
+  const n = Pages._notices[idx];
+  if(!n) return;
+
+  let imagesHtml = '';
+  if (n.images && n.images.length > 0) {
+    imagesHtml = `
+      <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
+        ${n.images.map(imgUrl => `<img src="${imgUrl}" style="width:100%; border-radius:8px; border:1px solid var(--border);">`).join('')}
+      </div>
+    `;
+  }
+
+  document.getElementById('modal-title').textContent = '상세 내용';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px;">
+      <h3 style="margin-bottom: 8px; font-size: 16px; font-weight:700;">${n.type} ${n.title}</h3>
+      <div style="font-size: 12px; color: var(--t3);">
+        <span>작성일: ${n.date}</span> | <span>작성자: ${n.author}</span> | <span>조회수: ${n.views.toLocaleString()}</span>
+      </div>
+    </div>
+    <div style="font-size: 14px; line-height: 1.6; color: var(--t1); min-height: 150px; white-space: pre-wrap;">
+      ${n.content}
+      ${imagesHtml}
+    </div>
+    <div class="modal-actions" style="margin-top: 24px; justify-content: flex-end; display: flex;">
+      <button class="btn btn-primary" onclick="UI.closeModal()">확인</button>
+    </div>
+  `;
   UI.openModal();
 }
 
@@ -1018,6 +1166,220 @@ async function buildFraudPage(el) {
 }
 
 
+/* ════════════════════════════════════════════════
+   당첨자 추첨 (Raffle) 기능
+════════════════════════════════════════════════ */
+let _drawResult = [];
+
+function openDrawModal() {
+  const modalEl = document.querySelector('.modal');
+  if (modalEl) modalEl.classList.remove('modal-large');
+
+  document.getElementById('modal-title').textContent = '🎉 당첨자 추첨하기';
+  
+  document.getElementById('modal-body').innerHTML = `
+    <div style="margin-bottom: 16px;">
+      <label style="font-weight:600; display:block; margin-bottom:8px;">1. 기간 설정</label>
+      <div style="display:flex; gap:16px; margin-bottom:8px;">
+        <label><input type="radio" name="draw-period-type" value="month" checked onchange="Pages._toggleDrawPeriod()"> 월 단위</label>
+        <label><input type="radio" name="draw-period-type" value="custom" onchange="Pages._toggleDrawPeriod()"> 사용자 지정</label>
+      </div>
+      <div id="draw-period-month">
+        <select id="draw-month" class="filter-select" style="width:100%;">
+          <option value="2026-05">2026-05</option>
+          <option value="2026-04">2026-04</option>
+        </select>
+      </div>
+      <div id="draw-period-custom" style="display:none; gap:8px; align-items:center;">
+        <input type="date" id="draw-start-date" class="filter-select" style="flex:1;">
+        <span>~</span>
+        <input type="date" id="draw-end-date" class="filter-select" style="flex:1;">
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label style="font-weight:600; display:block; margin-bottom:8px;">2. 등급 조건</label>
+      <div style="display:flex; gap:8px;">
+        <select id="draw-course" class="filter-select" style="flex:1;" onchange="Pages._onDrawCourseChange()">
+          <option value="">전체 코스</option>
+          <option value="1코스">1코스</option>
+          <option value="2코스">2코스</option>
+          <option value="3코스">3코스</option>
+        </select>
+        <select id="draw-grade" class="filter-select" style="flex:1;">
+          <option value="">모든 등급</option>
+          <option value="1코스_5">1코스_5</option>
+          <option value="1코스_10">1코스_10</option>
+          <option value="2코스_5">2코스_5</option>
+          <option value="2코스_9">2코스_9</option>
+          <option value="3코스_13">3코스_13</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label style="font-weight:600; display:block; margin-bottom:8px;">3. 추첨 인원</label>
+      <input type="number" id="draw-count" class="filter-select" style="width:100%;" value="10" min="1">
+    </div>
+
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="UI.closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="Pages.executeDraw()">추첨하기</button>
+    </div>
+  `;
+  UI.openModal();
+}
+
+function _toggleDrawPeriod() {
+  const type = document.querySelector('input[name="draw-period-type"]:checked').value;
+  document.getElementById('draw-period-month').style.display = type === 'month' ? 'block' : 'none';
+  document.getElementById('draw-period-custom').style.display = type === 'custom' ? 'flex' : 'none';
+}
+
+function _onDrawCourseChange() {
+  const course = document.getElementById('draw-course').value;
+  const gradeSelect = document.getElementById('draw-grade');
+  
+  let options = '<option value="">모든 등급</option>';
+  if (course === '1코스') {
+    options += '<option value="1코스_5">1코스_5</option><option value="1코스_10">1코스_10</option>';
+  } else if (course === '2코스') {
+    options += '<option value="2코스_5">2코스_5</option><option value="2코스_9">2코스_9</option>';
+  } else if (course === '3코스') {
+    options += '<option value="3코스_13">3코스_13</option>';
+  } else {
+    options += '<option value="1코스_5">1코스_5</option><option value="1코스_10">1코스_10</option><option value="2코스_5">2코스_5</option><option value="2코스_9">2코스_9</option><option value="3코스_13">3코스_13</option>';
+  }
+  gradeSelect.innerHTML = options;
+}
+
+function executeDraw() {
+  const type = document.querySelector('input[name="draw-period-type"]:checked').value;
+  const course = document.getElementById('draw-course').value;
+  const grade = document.getElementById('draw-grade').value;
+  const count = parseInt(document.getElementById('draw-count').value, 10);
+
+  let pool = _gifts.filter(g => g.status !== '지급완료');
+
+  if (type === 'month') {
+    const m = document.getElementById('draw-month').value;
+    if (m) pool = pool.filter(g => g.date.startsWith(m));
+  } else {
+    const sd = document.getElementById('draw-start-date').value;
+    const ed = document.getElementById('draw-end-date').value;
+    if (sd) pool = pool.filter(g => g.date >= sd);
+    if (ed) pool = pool.filter(g => g.date <= ed);
+  }
+
+  if (course) pool = pool.filter(g => g.course === course);
+  if (grade) pool = pool.filter(g => g.grade === grade);
+
+  if (pool.length === 0) {
+    UI.toast('조건에 맞는 대상자가 없습니다.', true);
+    return;
+  }
+
+  if (pool.length < count) {
+    UI.toast(`대상자(${pool.length}명)가 추첨 인원보다 적어 전원 당첨 처리됩니다.`);
+  }
+
+  const shuffled = pool.sort(() => 0.5 - Math.random());
+  _drawResult = shuffled.slice(0, count);
+  _renderDrawResult();
+}
+
+function _renderDrawResult() {
+  const modalEl = document.querySelector('.modal');
+  modalEl.classList.add('modal-large');
+  document.getElementById('modal-title').textContent = '🎉 당첨자 추첨 결과';
+
+  const tbodyHtml = _drawResult.map(g => `
+    <tr>
+      <td class="center"><input type="checkbox" class="draw-chk-row" value="${g.no}" checked style="accent-color:var(--blue);"></td>
+      <td>${g.date}</td>
+      <td>${g.nick}</td>
+      <td>${g.course}</td>
+      <td>${g.grade}</td>
+      <td>${g.name}</td>
+      <td class="mono text-muted">${g.phone}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:flex-end;">
+      <div style="font-weight:600; color:var(--blue);">총 ${_drawResult.length}명 당첨</div>
+      <button class="btn btn-outline btn-sm" onclick="Pages.exportDrawResultCSV()">⬇ CSV 다운로드</button>
+    </div>
+    
+    <div class="table-wrap" style="max-height: 400px; overflow-y:auto; margin-bottom:16px;">
+      <table>
+        <thead>
+          <tr>
+            <th class="center" style="width:40px;"><input type="checkbox" id="draw-chk-all" checked onchange="Pages._toggleDrawAll(this.checked)" style="accent-color:var(--blue);"></th>
+            <th>신청일</th><th>닉네임</th><th>코스</th><th>등급</th><th>실명</th><th>전화번호</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tbodyHtml}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TODO(API): 서버로 지급 완료 상태 전송 가이드 -->
+    <div style="background:var(--bg1); padding:12px; border-radius:6px; font-size:12px; color:var(--t2); margin-bottom:20px; line-height:1.5;">
+      💡 <b>[API 가이드] 지급 완료 일괄 처리</b><br>
+      아래 [선택 항목 지급 완료 처리] 버튼 클릭 시, 선택된 당첨자들의 고유번호(no) 배열을 서버로 전송해야 합니다.<br>
+      예: <code>POST /api/gifts/bulk-paid</code>, Body: <code>{ ids: [1, 5, 12, ...], status: '지급완료' }</code><br>
+      서버 응답이 성공하면, 프론트엔드 목록을 새로고침하여 상태를 갱신합니다.
+    </div>
+
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="UI.closeModal()">닫기</button>
+      <button class="btn btn-green" onclick="Pages.saveDrawWinnersPaid()">✅ 선택 항목 지급 완료 처리</button>
+    </div>
+  `;
+}
+
+function _toggleDrawAll(checked) {
+  document.querySelectorAll('.draw-chk-row').forEach(el => el.checked = checked);
+}
+
+function exportDrawResultCSV() {
+  if (_drawResult.length === 0) return;
+  const rows = [['번호','신청일','닉네임','코스','등급','실명','전화번호','주소']];
+  _drawResult.forEach(g => rows.push([
+    g.no, g.date, g.nick, g.course, g.grade, g.name, g.phone, `"${g.addr}"`
+  ]));
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download = '당첨자_추첨결과.csv';
+  a.click();
+  UI.toast('당첨자 명단 CSV 다운로드 완료');
+}
+
+function saveDrawWinnersPaid() {
+  const checkedBoxes = document.querySelectorAll('.draw-chk-row:checked');
+  const selectedNos = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
+
+  if (selectedNos.length === 0) {
+    UI.toast('지급 완료 처리할 대상을 선택해주세요.', true);
+    return;
+  }
+
+  // TODO(API): 실제 서버 연동 시 Bulk API 구현
+  console.log('[MOCK API] 당첨자 일괄 지급 완료 전송:', selectedNos);
+  
+  // 프론트엔드 목업 상태 업데이트
+  selectedNos.forEach(no => {
+    const g = _gifts.find(x => x.no === no);
+    if (g) g.status = '지급완료';
+  });
+
+  UI.toast(`${selectedNos.length}건 지급 완료 처리되었습니다.`);
+  UI.closeModal();
+  Pages.filterGifts();
+}
+
 /* ── 공통 페이지네이션 렌더 ── */
 function _renderPagination(infoId, btnsId, total, page, perPage, onPageClick) {
   const pages = Math.ceil(total / perPage) || 1;
@@ -1082,12 +1444,13 @@ async function saveManualAuth() {
 /* ── 외부 노출 ── */
 const Pages = {
   buildDashboard,
-  buildGiftPage, filterGifts, sortGifts,
+  buildGiftPage, filterGifts, sortGifts, onCourseChange,
+  openDrawModal, _toggleDrawPeriod, _onDrawCourseChange, executeDraw, exportDrawResultCSV, _toggleDrawAll, saveDrawWinnersPaid,
   openGiftDetail, openUserPage, exportGiftCSV,
   openBulkModal, _applyBulk,
   _onPaidChange, _toggleAllPaid, _syncSelectAll,
   _updateGiftStatus,
   buildReviewPage, filterReviews, _switchRevTab, _toggleReview,
-  buildNoticePage, _showNoticeForm,
+  buildNoticePage, _showNoticeForm, _showNoticeDetail, _handleNoticeImageUpload, _renderNoticeImages, _removeNoticeImage,
   buildManualPage, saveManualAuth, buildReceiptPage, buildStorePage, buildReportPage, buildFraudPage,
 };
