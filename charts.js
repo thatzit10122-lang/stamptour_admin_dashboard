@@ -550,6 +550,44 @@ function drawScatter(elId) {
   ), _CFG);
 }
 
+function drawMonthlyReport(elId = 'chart-monthly-report') {
+  if (!_data) return;
+  const monthMap = {};
+  const addValue = (date, key, value) => {
+    const month = date.slice(0, 7);
+    if (!monthMap[month]) monthMap[month] = { stamps: 0, reviews: 0, gifts: 0 };
+    monthMap[month][key] += value;
+  };
+
+  (_data.daily_stamps || []).forEach(item => addValue(item.date, 'stamps', item.count || 0));
+  (_data.reviews || []).forEach(item => item.date && addValue(item.date, 'reviews', 1));
+  if (Array.isArray(_data.gift_daily) && _data.gift_daily.length) {
+    _data.gift_daily.forEach(item => item.date && addValue(item.date, 'gifts', item.count || 0));
+  } else if (Array.isArray(_data.gifts)) {
+    _data.gifts.forEach(item => item.date && addValue(item.date, 'gifts', 1));
+  }
+
+  const months = Object.keys(monthMap).sort();
+  const labels = months.map(m => m.replace('-', '/'));
+  const stamps = months.map(m => monthMap[m].stamps);
+  const reviews = months.map(m => monthMap[m].reviews);
+  const gifts = months.map(m => monthMap[m].gifts);
+
+  Plotly.newPlot(elId, [
+    { x: labels, y: stamps, name: '스탬프 인증', type: 'bar', marker: { color: '#3b82f6' }, hovertemplate: '<b>%{x}</b><br>인증 %{y:,}건<extra></extra>' },
+    { x: labels, y: reviews, name: '여행후기', type: 'bar', marker: { color: '#a78bfa' }, hovertemplate: '<b>%{x}</b><br>후기 %{y}건<extra></extra>' },
+    { x: labels, y: gifts, name: '선물 신청자', type: 'bar', marker: { color: '#f97316' }, hovertemplate: '<b>%{x}</b><br>신청자 %{y}명<extra></extra>' },
+  ], _layout(
+    { t: 26, r: 20, b: 50, l: 56 },
+    {
+      barmode: 'group',
+      legend: { orientation: 'h', y: -0.2, x: 0, font: { ..._FONT, size: 11 } },
+      xaxis: _ax({ tickangle: -30 }),
+      yaxis: _ax({ tickformat: ',' }),
+    }
+  ), _CFG);
+}
+
 
 /* ── 테마 토글 처리 ── */
 function setTheme(isLight) {
@@ -572,6 +610,7 @@ const Charts = {
   drawReviewPlaceBar,
   drawCumul,
   drawScatter,
+  drawMonthlyReport,
   toggleStamp,
   setMonthFilter,
   setTheme,

@@ -17,6 +17,7 @@ const PAGE_META = {
   store:     { title: '상점 관리' },
   report:    { title: '상세 보고서' },
   fraud:     { title: '부정사용 관리' },
+  'monthly-report': { title: '월별 운영 보고서' },
 };
 
 const PAGE_BUILD = {
@@ -28,6 +29,7 @@ const PAGE_BUILD = {
   store:   Pages.buildStorePage,
   report:  Pages.buildReportPage,
   fraud:   Pages.buildFraudPage,
+  'monthly-report': Pages.buildMonthlyReportPage,
 };
 
 /* 이미 렌더된 페이지 추적 */
@@ -114,6 +116,24 @@ async function goPage(id) {
   /* 탑바 제목 가운데 정렬 */
   const meta = PAGE_META[id] || { title: id };
   document.getElementById('topbar-title').textContent = meta.title;
+  
+  /* 월별 운영 보고서 페이지일 때만 특별 처리 */
+  const monthSelector = document.getElementById('month-selector');
+  const periodInfo = document.getElementById('topbar-period-info');
+  const exportBtn = document.getElementById('topbar-export-btn');
+  
+  if (id === 'monthly-report') {
+    /* 월 선택 필터 숨기기, 기간 정보만 표시 */
+    monthSelector.style.display = 'none';
+    periodInfo.style.display = 'block';
+    /* PDF 버튼 함수 변경 */
+    exportBtn.onclick = () => exportMonthlyReportPDF();
+  } else {
+    /* 다른 페이지일 때는 원래대로 */
+    monthSelector.style.display = 'block';
+    periodInfo.style.display = 'none';
+    exportBtn.onclick = () => exportDashboardPDF();
+  }
 
   /* 최초 1회 빌드 (async 완료 후 표시) */
   if (!_rendered.has(id) && PAGE_BUILD[id]) {
@@ -214,28 +234,62 @@ window.onMonthChange = async function() {
    보고서 내보내기 (PDF 추출)
 ════════════════════════════════════════════════ */
 window.exportDashboardPDF = function() {
-  const element = document.getElementById('content');
+  const element = document.getElementById('pg-dashboard');
   if (!element) return;
   
   UI.toast('보고서를 생성 중입니다. 잠시만 기다려주세요...');
   
+  /* 보고서 캔터츠만 복사 (클론) */
+  const clone = element.cloneNode(true);
+  const temp = document.createElement('div');
+  temp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1400px;background:#0d1117;color:#e2e8f0;padding:20px;';
+  temp.appendChild(clone);
+  document.body.appendChild(temp);
+  
   const opt = {
-    margin:       10,
+    margin:       [10, 10, 10, 10],
     filename:     '스탬프투어_대시보드_보고서.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#0d1117' },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
   };
   
-  // 요소의 원래 배경색을 보존하면서 캡처
-  const originalBg = element.style.background;
-  element.style.background = '#0d1117'; // 다크모드 배경색 명시
-  
-  html2pdf().set(opt).from(element).save().then(() => {
-    element.style.background = originalBg;
+  html2pdf().set(opt).from(clone).save().then(() => {
+    document.body.removeChild(temp);
     UI.toast('보고서 다운로드가 완료되었습니다.');
   }).catch(err => {
-    element.style.background = originalBg;
+    document.body.removeChild(temp);
+    UI.toast('보고서 생성 중 오류가 발생했습니다.', true);
+    console.error(err);
+  });
+};
+
+window.exportMonthlyReportPDF = function() {
+  const element = document.getElementById('pg-monthly-report');
+  if (!element) return;
+  
+  UI.toast('보고서를 생성 중입니다. 잠시만 기다려주세요...');
+  
+  /* 보고서 캔터츠만 복사 (클론) */
+  const clone = element.cloneNode(true);
+  const temp = document.createElement('div');
+  temp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1200px;background:#0d1117;color:#e2e8f0;padding:20px;';
+  temp.appendChild(clone);
+  document.body.appendChild(temp);
+  
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     '스탬프투어_월별운영보고서.pdf',
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#0d1117' },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  
+  html2pdf().set(opt).from(clone).save().then(() => {
+    document.body.removeChild(temp);
+    UI.toast('보고서 다운로드가 완료되었습니다.');
+  }).catch(err => {
+    document.body.removeChild(temp);
     UI.toast('보고서 생성 중 오류가 발생했습니다.', true);
     console.error(err);
   });

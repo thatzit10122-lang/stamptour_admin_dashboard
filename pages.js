@@ -1032,9 +1032,31 @@ function buildManualPage(el) {
 }
 
 function buildReceiptPage(el) {
+  /* ▼ TODO(API): 영수증 이벤트 데이터 연동
+     - 추후 서버와 연결할 때는 API.fetchReceipts()를 호출하고
+       현재 선택된 기간(월별 / 전체 등)을 쿼리 파라미터로 전달하세요.
+     - 예: GET /api/receipts?period=all
+           GET /api/receipts?month=2026-05
+     - 서버에서는 아래와 같은 데이터 배열을 반환해야 합니다.
+       [ { no, date, time, nick, store, amount, status }, ... ]
+     - 현재는 화면 프로토타입용 더미 데이터를 사용하고 있습니다.
+  */
+  const receipts = [
+    { no: 1, date: '2026-05-16', time: '14:32', nick: 'kim_user1', store: '나비카페', amount: 15000, status: '유효한 영수증' },
+    { no: 2, date: '2026-05-16', time: '13:45', nick: 'lee_travel', store: '함평한우 직판장', amount: 45000, status: '유효한 영수증' },
+    { no: 3, date: '2026-05-16', time: '12:20', nick: 'park_2026', store: '황금박쥐 기념품샵', amount: 28000, status: '유효한 영수증' },
+    { no: 4, date: '2026-05-16', time: '11:15', nick: 'choi_stamp', store: '나빛파크 식당', amount: 32000, status: '부적합 영수증' },
+    { no: 5, date: '2026-05-15', time: '16:50', nick: 'jung_tour', store: '나비카페', amount: 12000, status: '유효한 영수증' },
+    { no: 6, date: '2026-05-15', time: '15:30', nick: 'oh_visitor', store: '함평한우 직판장', amount: 52000, status: '유효한 영수증' },
+    { no: 7, date: '2026-05-15', time: '14:10', nick: 'kang_happy', store: '전통놀이 체험관', amount: 8000, status: '부적합 영수증' },
+    { no: 8, date: '2026-05-15', time: '13:20', nick: 'baek_event', store: '나빛파크 식당', amount: 35000, status: '유효한 영수증' },
+    { no: 9, date: '2026-05-14', time: '17:45', nick: 'seo_adventure', store: '나비카페', amount: 18000, status: '유효한 영수증' },
+    { no: 10, date: '2026-05-14', time: '16:20', nick: 'han_explorer', store: '황금박쥐 기념품샵', amount: 25000, status: '유효한 영수증' },
+  ];
+
   el.innerHTML = `
   <div class="kpi-grid mb20">
-    <div class="kpi-card" style="text-align:center"><div class="kpi-val" style="color:var(--blue)">15,000</div><div class="kpi-label">총 접수건</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue)">15,000</div><div class="kpi-label">총 접수건</div></div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--green)">13,000</div><div class="kpi-label">처리완료</div><div class="prog-bar"><div class="prog-fill" style="width:86.7%;background:var(--green)"></div></div></div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--yellow)">1,000</div><div class="kpi-label">처리중</div><div class="prog-bar"><div class="prog-fill" style="width:6.7%;background:var(--yellow)"></div></div></div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--red)">1,000</div><div class="kpi-label">부적격</div><div class="prog-bar"><div class="prog-fill" style="width:6.7%;background:var(--red)"></div></div></div>
@@ -1043,42 +1065,182 @@ function buildReceiptPage(el) {
     <div class="card-title">💰 총 소비 인증 금액</div>
     <div style="font-size:32px;font-weight:800;color:var(--green);margin:10px 0">260,000,000<span style="font-size:16px;font-weight:500;color:var(--t3)"> 원</span></div>
     <div style="font-size:11px;color:var(--t3)">처리완료 13,000건 기준 · 건당 평균 약 20,000원</div>
+  </div>
+
+  <div class="card mt20">
+    <div class="card-title">📋 영수증 리스트</div>
+    <div class="table-wrap">
+      <table style="table-layout:fixed;">
+        <colgroup>
+          <col style="width:50px;" />
+          <col style="width:140px;" />
+          <col style="width:140px;" />
+          <col style="width:180px;" />
+          <col style="width:120px;" />
+          <col style="width:130px;" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="center">번호</th>
+            <th>업로드 일시</th>
+            <th>게재자 (닉네임)</th>
+            <th>영수증 상호 (사용처)</th>
+            <th class="right">인증 금액</th>
+            <th>구분</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${receipts.map(r => {
+            const statusClass = r.status === '유효한 영수증' ? 'badge-green' : 'badge-red';
+            const statusText = r.status === '유효한 영수증' ? '✅' : '❌';
+            return `
+            <tr>
+              <td class="center text-muted">${r.no}</td>
+              <td style="font-size:12px;color:var(--t2)">${r.date} ${r.time}</td>
+              <td style="color:var(--blue);font-weight:600">${r.nick}</td>
+              <td>${r.store}</td>
+              <td class="right" style="font-weight:600">${r.amount.toLocaleString()}원</td>
+              <td><span class="badge ${statusClass}" style="font-size:12px">${statusText} ${r.status}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
 
 function buildStorePage(el) {
+  /* ▼ TODO(API): 상점 관리 데이터 연동
+     - 추후 서버와 연결할 때는 API.fetchStores()를 호출하고
+       현재 선택된 기간/월별 필터를 쿼리 파라미터로 전달하세요.
+     - 예: GET /api/stores?period=all
+           GET /api/stores?month=2026-05
+     - 서버에서는 아래와 같은 데이터 배열을 반환해야 합니다.
+       [ { date, name, category, desc, addr, redfoot }, ... ]
+     - 상점 목록 및 업종 분포 차트는 모두 동일한 기간 기준으로 동기화되어야 합니다.
+     - 현재는 화면 프로토타입용 더미 데이터를 사용하고 있습니다.
+  */
+  // 상점 리스트 더미 데이터
   const stores = [
-    {n:'나비카페',c:'카페',i:'☕',m:120,k:'85%',s:'운영중'},
-    {n:'함평한우 직판장',c:'음식점',i:'🥩',m:95,k:'72%',s:'운영중'},
-    {n:'황금박쥐 기념품샵',c:'체험',i:'🦇',m:63,k:'90%',s:'운영중'},
-    {n:'나빛파크 식당',c:'음식점',i:'🍱',m:45,k:'60%',s:'운영중'},
-    {n:'전통놀이 체험관',c:'체험',i:'🎮',m:22,k:'55%',s:'휴무'},
+    { date: '2026-05-15', name: '나비카페', category: '카페', desc: '함평 최고의 커피숍입니다. 아이스 아메리카노 한잔에 단돈 1,000원', addr: '전라북도 함평군 중앙로 123', redfoot: 'O' },
+    { date: '2026-05-14', name: '함평한우 직판장', category: '음식점', desc: '신선한 함평 한우를 저렴한 가격에 판매합니다.', addr: '전라북도 함평군 상점길 45', redfoot: 'O' },
+    { date: '2026-05-13', name: '황금박쥐 기념품샵', category: '기념품', desc: '함평나비축제 공식 기념품 판매점입니다.', addr: '전라북도 함평군 축제광장 56', redfoot: 'X' },
+    { date: '2026-05-12', name: '나빛파크 식당', category: '음식점', desc: '건강한 한끼 식사를 제공합니다.', addr: '전라북도 함평군 공원로 78', redfoot: 'O' },
+    { date: '2026-05-11', name: '전통놀이 체험관', category: '체험', desc: '어린이 및 가족을 위한 전통놀이 체험 공간입니다.', addr: '전라북도 함평군 문화마을 90', redfoot: 'X' },
+    { date: '2026-05-10', name: '함평 로컬푸드 직매장', category: '식료품', desc: '함평 지역 농산물을 직접 판매합니다.', addr: '전라북도 함평군 농산로 234', redfoot: 'O' },
+    { date: '2026-05-09', name: '나비 갤러리 카페', category: '카페', desc: '예술작품을 감상하며 커피를 즐길 수 있는 공간입니다.', addr: '전라북도 함평군 예술거리 12', redfoot: 'O' },
+    { date: '2026-05-08', name: '함평 짚풀 공예 박물관', category: '문화', desc: '함평 짚풀 공예의 역사와 문화를 체험합니다.', addr: '전라북도 함평군 전통로 567', redfoot: 'X' },
   ];
+
+  // 업종별 분포 데이터
+  const categoryCount = {};
+  stores.forEach(s => {
+    categoryCount[s.category] = (categoryCount[s.category] || 0) + 1;
+  });
+
+  const totalStoreCount = stores.length;
+  const selectedPeriodStoreCount = stores.filter(s => s.date.startsWith('2026-05')).length; // TODO: 서버 연동 시 선택된 기간 필터를 사용하세요.
+  const redfootCount = stores.filter(s => s.redfoot === 'O').length;
+
   el.innerHTML = `
   <div class="kpi-grid mb20">
-    <div class="kpi-card"><div class="kpi-icon">🏪</div><div class="kpi-val" style="color:var(--blue)">1,500</div><div class="kpi-label">총 상점</div></div>
-    <div class="kpi-card"><div class="kpi-icon">💬</div><div class="kpi-val" style="color:var(--cyan)">1,000</div><div class="kpi-label">메시지 등록</div></div>
-    <div class="kpi-card"><div class="kpi-icon">🎟</div><div class="kpi-val" style="color:var(--purple)">500</div><div class="kpi-label">쿠폰 발급</div></div>
-    <div class="kpi-card"><div class="kpi-icon">📈</div><div class="kpi-val" style="color:var(--green)">50%</div><div class="kpi-label">쿠폰 사용률</div></div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🏪</div>
+      <div class="kpi-val" style="color:var(--blue)">
+        <span style="font-size:24px;">${totalStoreCount}</span>
+        <span style="font-size:14px;color:var(--t3);">전체</span>
+      </div>
+      <div class="kpi-label">전체 등록 상점 수</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:4px;">선택 기간 등록 상점 수: ${selectedPeriodStoreCount}건</div>
+    </div>
+    
+    <div class="kpi-card" id="store-category-card" style="position:relative;">
+      <div style="position:absolute;top:10px;left:12px;">
+        <div class="card-title" style="margin:0;font-size:13px;font-weight:600;">업종별 분포</div>
+      </div>
+      <div id="store-pie-chart" class="chart" style="height:140px;margin-top:20px;"></div>
+    </div>
+    
+    <div class="kpi-card">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-val" style="color:var(--red)">${redfootCount}</div>
+      <div class="kpi-label">빨간발자국</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:4px;">이벤트 등록 상점</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-val" style="color:var(--green)">${((redfootCount / stores.length) * 100).toFixed(1)}%</div>
+      <div class="kpi-label">등록률</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:4px;">빨간발자국 등록률</div>
+    </div>
   </div>
+
   <div class="card">
-    ${stores.map(s => `
-    <div class="store-item">
-      <div class="store-icon">${s.i}</div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:700">${s.n}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">
-          <span class="badge badge-blue" style="font-size:10px">${s.c}</span> 메시지 ${s.m}건
-        </div>
-      </div>
-      <div style="text-align:right;margin-right:12px">
-        <div style="font-size:13px;font-weight:700">${s.k}</div>
-        <div style="font-size:10.5px;color:var(--t3)">쿠폰 사용률</div>
-      </div>
-      <span class="badge ${s.s==='운영중'?'badge-green':'badge-gray'}" style="margin-right:10px">${s.s}</span>
-      <button class="btn btn-outline btn-xs">관리</button>
-    </div>`).join('')}
+    <div class="card-title">📋 등록 상점 목록</div>
+    <div class="table-wrap">
+      <table style="table-layout:fixed;">
+        <colgroup>
+          <col style="width:100px;" />
+          <col style="width:170px;" />
+          <col style="width:100px;" />
+          <col style="width:320px;" />
+          <col style="width:220px;" />
+          <col style="width:100px;" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>등록일</th>
+            <th>상점명</th>
+            <th>업종</th>
+            <th>가게 소개</th>
+            <th>주소</th>
+            <th class="center">빨간발자국</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${stores.map((s, idx) => `
+          <tr>
+            <td style="font-size:12px;color:var(--t2);">${s.date}</td>
+            <td style="font-weight:600;color:var(--blue);">${s.name}</td>
+            <td><span class="badge badge-cyan" style="font-size:11px;">${s.category}</span></td>
+            <td style="font-size:12px;color:var(--t3);">${s.desc}</td>
+            <td style="font-size:11px;color:var(--t3);">${s.addr}</td>
+            <td class="center">
+              <span class="badge ${s.redfoot === 'O' ? 'badge-red' : 'badge-gray'}" style="font-size:11px;">
+                ${s.redfoot === 'O' ? '🔴 등록' : '○ 미등록'}
+              </span>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>`;
+
+  // 차트 렌더링
+  setTimeout(() => {
+    const categoryLabels = Object.keys(categoryCount);
+    const categoryValues = Object.values(categoryCount);
+    
+    const trace = {
+      labels: categoryLabels,
+      values: categoryValues,
+      type: 'pie',
+      marker: { colors: ['#3b82f6', '#22d3ee', '#a78bfa', '#10b981', '#f97316', '#f59e0b', '#ec4899', '#6366f1'] },
+      textinfo: 'label+value',
+      textposition: 'inside',
+    };
+    
+    const layout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      font: { family: "'Noto Sans KR', system-ui, sans-serif", color: '#94a3b8', size: 11 },
+      margin: { t: 10, r: 10, b: 10, l: 10 },
+      showlegend: false,
+    };
+    
+    Plotly.newPlot('store-pie-chart', [trace], layout, { responsive: true, displayModeBar: false });
+  }, 100);
 }
 
 function buildReportPage(el) {
@@ -1104,6 +1266,137 @@ function buildReportPage(el) {
     Charts.drawCumul('rpt-cumul');
     Charts.drawScatter('rpt-scatter');
     Charts.drawHourPattern('rpt-hour');
+  }, 100);
+}
+
+function buildMonthlyReportPage(el) {
+  const data = window._dashData;
+  if (!data) { el.innerHTML = '<p class="text-muted">데이터를 불러오는 중...</p>'; return; }
+
+  /* 월별 데이터 집계 */
+  const reportMonthMap = {};
+  const addReportValue = (month, key, value) => {
+    if (!reportMonthMap[month]) reportMonthMap[month] = { stamps: 0, reviews: 0, gifts: 0 };
+    reportMonthMap[month][key] += value;
+  };
+
+  (data.daily_stamps || []).forEach(d => {
+    addReportValue(d.date.slice(0, 7), 'stamps', d.count);
+  });
+  (data.reviews || []).forEach(r => {
+    if (r.date) addReportValue(r.date.slice(0, 7), 'reviews', 1);
+  });
+  if (Array.isArray(data.gift_daily) && data.gift_daily.length) {
+    data.gift_daily.forEach(g => {
+      if (g.date) addReportValue(g.date.slice(0, 7), 'gifts', g.count || 0);
+    });
+  } else if (Array.isArray(data.gifts)) {
+    data.gifts.forEach(g => {
+      if (g.date) addReportValue(g.date.slice(0, 7), 'gifts', 1);
+    });
+  }
+
+  const reportMonths = Object.keys(reportMonthMap).sort();
+  const reportData = reportMonths.map(month => ({
+    month,
+    stamps: reportMonthMap[month].stamps || 0,
+    reviews: reportMonthMap[month].reviews || 0,
+    gifts: reportMonthMap[month].gifts || 0,
+  }));
+
+  const reportTotal = reportData.reduce((sum, item) => ({
+    stamps: sum.stamps + item.stamps,
+    reviews: sum.reviews + item.reviews,
+    gifts: sum.gifts + item.gifts,
+  }), { stamps: 0, reviews: 0, gifts: 0 });
+  
+  const reportAvg = {
+    stamps: reportData.length ? Math.round(reportTotal.stamps / reportData.length) : 0,
+    reviews: reportData.length ? Math.round(reportTotal.reviews / reportData.length) : 0,
+    gifts: reportData.length ? Math.round(reportTotal.gifts / reportData.length) : 0,
+  };
+  
+  const topMonth = reportData.reduce((best, item) => item.stamps > best.stamps ? item : best, reportData[0] || { stamps: 0 });
+  const reviewConversion = reportTotal.stamps ? ((reportTotal.reviews / reportTotal.stamps) * 100).toFixed(1) : '—';
+
+  el.innerHTML = `
+  <div style="margin-bottom:20px;">
+    <h2 style="margin:0; font-size:24px; font-weight:700; color:var(--t1);">📅 월별 운영 보고서</h2>
+    <p style="margin:6px 0 0 0; color:var(--t3); font-size:13px;">연말 사업 평가 및 차기 계획 수립을 위한 운영 현황 분석</p>
+  </div>
+
+  <div class="kpi-grid mb20">
+    <div class="kpi-card"><div class="kpi-icon">📅</div><div class="kpi-val" style="color:var(--blue)">${reportData.length || '—'}</div><div class="kpi-label">분석 대상 월</div></div>
+    <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-val" style="color:var(--green)">${reportAvg.stamps.toLocaleString()}</div><div class="kpi-label">월평균 스탬프 인증</div><div style="font-size:11px;color:var(--t3);">총 ${reportTotal.stamps.toLocaleString()}건</div></div>
+    <div class="kpi-card"><div class="kpi-icon">✍️</div><div class="kpi-val" style="color:var(--purple)">${reportAvg.reviews.toLocaleString()}</div><div class="kpi-label">월평균 여행후기</div><div style="font-size:11px;color:var(--t3);">전환율 ${reviewConversion}%</div></div>
+    <div class="kpi-card"><div class="kpi-icon">🎁</div><div class="kpi-val" style="color:var(--orange)">${reportAvg.gifts.toLocaleString()}</div><div class="kpi-label">월평균 선물 신청자</div><div style="font-size:11px;color:var(--t3);">총 ${reportTotal.gifts.toLocaleString()}명</div></div>
+  </div>
+
+  <div class="grid2 mb20">
+    <div class="card">
+      <div class="card-title">📈 월별 운영 실적</div>
+      <div class="card-sub">월별 스탬프 인증 · 여행후기 · 선물 신청자 추이</div>
+      <div id="chart-monthly-report" class="chart h300"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📌 보고서 인사이트</div>
+      <div class="card-sub">연말 보고서 기반 내년 기획 포인트</div>
+      <div id="monthly-report-insight" style="display:flex; flex-direction:column; gap:12px;"></div>
+    </div>
+  </div>
+
+  <div id="monthly-report-cards" class="grid4 mb20"></div>
+
+  <div class="card">
+    <div class="card-title">📋 월별 운영 데이터</div>
+    <div class="card-sub">월별 스탬프 인증 · 여행후기 · 선물 신청자 수를 보고서 양식으로 정리</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>월</th>
+            <th class="right">스탬프 인증</th>
+            <th class="right">여행후기</th>
+            <th class="right">선물 신청자</th>
+          </tr>
+        </thead>
+        <tbody id="monthly-report-tbody"></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  /* 카드, 인사이트, 표 채우기 */
+  document.getElementById('monthly-report-cards').innerHTML = [
+    { ic: '📅', title: '분석 기간', value: reportData.length ? `${reportMonths[0].replace('-', '/')} ~ ${reportMonths[reportMonths.length - 1].replace('-', '/')}` : '데이터 없음' },
+    { ic: '📊', title: '총 스탬프', value: `${reportTotal.stamps.toLocaleString()}건` },
+    { ic: '✍️', title: '총 후기', value: `${reportTotal.reviews.toLocaleString()}건` },
+    { ic: '🎁', title: '총 신청자', value: `${reportTotal.gifts.toLocaleString()}명` },
+  ].map(card => `
+    <div class="kpi-card">
+      <div class="kpi-icon">${card.ic}</div>
+      <div class="kpi-val" style="color:var(--blue)">${card.value}</div>
+      <div class="kpi-label">${card.title}</div>
+    </div>`).join('');
+
+  document.getElementById('monthly-report-insight').innerHTML = reportData.length ? [
+    `전체 ${reportData.length}개월 동안 총 ${reportTotal.stamps.toLocaleString()}건의 스탬프 인증이 기록되었습니다.`,
+    `가장 활발한 월은 ${topMonth.month.replace('-', '/')}로 ${topMonth.stamps.toLocaleString()}건을 기록했습니다.`,
+    `월평균 후기 작성은 ${reportAvg.reviews.toLocaleString()}건으로, 인증 대비 후기 전환률은 약 ${reviewConversion}% 수준입니다.`,
+    `선물 신청자 월평균 ${reportAvg.gifts.toLocaleString()}명으로, 차기 사업에서는 후기-선물 전환 과정의 효율을 더욱 강화해야 합니다.`,
+  ].map(line => `<div class="text-sm">• ${line}</div>`).join('') : '<div class="text-sm text-muted">월별 운영 데이터가 없습니다.</div>';
+
+  document.getElementById('monthly-report-tbody').innerHTML = reportData.map(item => `
+    <tr>
+      <td>${item.month.replace('-', '/')}</td>
+      <td class="right bold">${item.stamps.toLocaleString()}</td>
+      <td class="right">${item.reviews.toLocaleString()}</td>
+      <td class="right">${item.gifts.toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  /* 차트 그리기 */
+  setTimeout(() => {
+    Charts.drawMonthlyReport('chart-monthly-report');
   }, 100);
 }
 
@@ -1530,5 +1823,5 @@ const Pages = {
   _updateGiftStatus,
   buildReviewPage, filterReviews, _switchRevTab, _toggleReview,
   buildNoticePage, _showNoticeForm, _showNoticeDetail, _handleNoticeImageUpload, _renderNoticeImages, _removeNoticeImage,
-  buildManualPage, saveManualAuth, buildReceiptPage, buildStorePage, buildReportPage, buildFraudPage,
+  buildManualPage, saveManualAuth, buildReceiptPage, buildStorePage, buildReportPage, buildMonthlyReportPage, buildFraudPage,
 };
