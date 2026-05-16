@@ -17,7 +17,7 @@ const PAGE_META = {
   store:     { title: '상점 관리' },
   report:    { title: '상세 보고서' },
   fraud:     { title: '부정사용 관리' },
-  'monthly-report': { title: '월별 운영 보고서' },
+  'monthly-report': { title: '월별 운영 보고서(결산)' },
 };
 
 const PAGE_BUILD = {
@@ -117,7 +117,7 @@ async function goPage(id) {
   const meta = PAGE_META[id] || { title: id };
   document.getElementById('topbar-title').textContent = meta.title;
   
-  /* 월별 운영 보고서 페이지일 때만 특별 처리 */
+  /* 월별 운영 보고서(결산) 페이지일 때만 특별 처리 */
   const monthSelector = document.getElementById('month-selector');
   const periodInfo = document.getElementById('topbar-period-info');
   const exportBtn = document.getElementById('topbar-export-btn');

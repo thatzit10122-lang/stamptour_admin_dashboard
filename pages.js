@@ -1321,7 +1321,7 @@ function buildMonthlyReportPage(el) {
 
   el.innerHTML = `
   <div style="margin-bottom:20px;">
-    <h2 style="margin:0; font-size:24px; font-weight:700; color:var(--t1);">📅 월별 운영 보고서</h2>
+    <h2 style="margin:0; font-size:24px; font-weight:700; color:var(--t1);">📅 월별 운영 보고서(결산)</h2>
     <p style="margin:6px 0 0 0; color:var(--t3); font-size:13px;">연말 사업 평가 및 차기 계획 수립을 위한 운영 현황 분석</p>
   </div>
 
