@@ -85,12 +85,29 @@
           <span class="nav-ic">⚠️</span> 부정사용 관리
           <span class="nav-badge alert" id="badge-fraud">—</span>
         </div>
+        <div class="nav-item" data-page="monthly-report">
+          <span class="nav-ic">📝</span> 월별 운영 보고서(결산)
+        </div>
       </div>
     </nav>
 
     <div class="sidebar-user">
-      <!-- TODO(API): 사이드바 유저 정보 연동
-           로그인한 관리자의 이름, 역할(Role), 아바타 이니셜 등을 서버 세션/DB에서 조회하여 렌더링해야 합니다. -->
+      <!--
+        ✅ TODO(API) — 사이드바 로그인 유저 정보 연동
+        ─────────────────────────────────────────────────────
+        [현재] 이름·역할이 하드코딩되어 있습니다.
+        [변경] 앱 초기화(initApp) 시 서버 세션 또는 JWT에서 관리자 정보를 조회하여
+               아래 DOM 요소를 동적으로 업데이트하세요.
+
+        연동 예시 (app.js initApp() 상단에 추가):
+          const me = await API.fetchCurrentUser();
+          document.getElementById('sidebar-avatar').textContent = me.name.charAt(0);
+          document.getElementById('sidebar-name').textContent   = me.name;
+          document.getElementById('sidebar-role').textContent   = me.role;
+
+        서버 응답 구조:
+          GET /api/me → { id, name, role, email }
+      -->
       <div class="user-avatar" id="sidebar-avatar">관</div>
       <div>
         <div class="user-name" id="sidebar-name">함평군청 담당자</div>
@@ -109,20 +126,40 @@
       <div class="topbar-left" style="display: flex; align-items: center; gap: 16px; flex: 1;">
         <div>
           <div class="topbar-title" id="topbar-title">대시보드</div>
-          <!-- TODO(API): 상단 행사명 및 기간 연동
-               DB의 Event 테이블에서 행사명(name), 시작일(startDate), 종료일(endDate)을 조회하여 아래 텍스트를 동적으로 교체해야 합니다. -->
+          <!--
+            ✅ TODO(API) — 행사명 및 기간 연동
+            서버의 Event 테이블에서 행사명(name), 시작일(startDate), 종료일(endDate)을 조회하여
+            아래 텍스트를 동적으로 교체하세요.
+
+            연동 예시 (app.js initApp() 내 fetchEventInfo() 호출 후):
+              const ev = await API.fetchEventInfo();
+              document.getElementById('topbar-event-info').textContent =
+                `${ev.name} · ${ev.startDate} – ${ev.endDate}`;
+          -->
           <div class="topbar-sub" id="topbar-event-info">함평나비대축제 스탬프투어 · 2026.04.24 – 05.05</div>
         </div>
-        <!-- TODO(API): 월별 필터 옵션 연동
-             서버에서 해당 행사의 실제 진행 기간(월 단위)을 추출하여 <option> 태그를 동적 생성해야 합니다. -->
+        <!--
+          ✅ TODO(API) — 월별 필터 <option> 동적 생성
+          현재: 하드코딩된 2026-04, 2026-05 옵션만 존재합니다.
+          변경: fetchEventInfo() 응답의 months 배열로 동적 생성하세요.
+
+          연동 예시:
+            const ev = await API.fetchEventInfo();
+            const sel = document.getElementById('month-selector');
+            sel.innerHTML = '<option value="all">전체 기간</option>' +
+              ev.months.map(m => `<option value="${m}">${m.replace('-','년 ')}월</option>`).join('');
+
+          api.js ⑨ fetchEventInfo() 주석 참고
+        -->
         <select id="month-selector" class="filter-select" style="font-weight:bold; height:36px; border-radius:6px; border:1px solid var(--border); padding:0 12px; font-size:13px; color:var(--t1);" onchange="onMonthChange()">
           <option value="all">전체 기간</option>
           <option value="2026-04">2026년 4월</option>
           <option value="2026-05" selected>2026년 5월</option>
         </select>
+        <div id="topbar-period-info" style="display:none; font-size:12px; color:var(--t3); font-weight:600;">2026.04.24 – 05.05</div>
       </div>
       <div class="topbar-right" id="topbar-actions">
-        <button class="btn btn-primary" style="font-weight:bold; height:36px; padding:0 16px; font-size:13px;" onclick="exportDashboardPDF()">📄 보고서로 내보내기 (PDF)</button>
+        <button id="topbar-export-btn" class="btn btn-primary" style="font-weight:bold; height:36px; padding:0 16px; font-size:13px;" onclick="exportDashboardPDF()">📄 보고서로 내보내기 (PDF)</button>
       </div>
     </header>
 
@@ -240,6 +277,7 @@
       <div class="page" id="pg-store"></div>
       <div class="page" id="pg-report"></div>
       <div class="page" id="pg-fraud"></div>
+      <div class="page" id="pg-monthly-report"></div>
 
     </div><!-- /content -->
   </div><!-- /main -->
@@ -258,14 +296,24 @@
   <!-- 토스트 -->
   <div class="toast" id="toast"></div>
 
-  <!-- ════════════════════════════════════════════
-       스크립트 로드 순서 중요:
-       1. api.js   → 데이터 fetch 담당 (API 교체 시 이 파일만 수정)
-       2. charts.js → Plotly 차트 렌더링
-       3. pages.js  → 각 페이지 HTML 빌드
-       4. app.js    → 네비게이션·초기화 진입점
-  ════════════════════════════════════════════ -->
-  <!-- 📌 MOCK 데이터 (실제 API 연동 시 이 줄 제거) -->
+  <!--
+    ════════════════════════════════════════════════════════════
+    스크립트 로드 순서 (변경 금지)
+    ════════════════════════════════════════════════════════════
+    1. mock-data.js → 📌 MOCK 전용. 실서버 연동 완료 시 이 줄 삭제
+    2. api.js       → 데이터 fetch 전담. API 연동 시 이 파일만 수정
+    3. charts.js    → Plotly 차트 렌더링 (수정 불필요)
+    4. pages.js     → 각 페이지 HTML 빌드 (데이터 구조 변경 시 수정)
+    5. app.js       → 네비게이션·초기화 진입점 (수정 불필요)
+
+    ✅ 실서버 연동 완료 후 제거할 항목:
+       [ ] 아래 mock-data.js <script> 태그 삭제
+       [ ] api.js 각 함수의 MOCK 반환 줄 삭제 + 실제 API 줄 주석 해제
+       [ ] api.js API_CONFIG.BASE_URL 에 실제 서버 주소 입력
+       [ ] api.js API_CONFIG.HEADERS 인증 헤더 설정
+    ════════════════════════════════════════════════════════════
+  -->
+  <!-- 📌 MOCK 데이터 — 실제 API 연동 완료 시 아래 줄을 반드시 삭제하세요 -->
   <script src="mock-data.js"></script>
   <script src="api.js"></script>
   <script src="charts.js"></script>
